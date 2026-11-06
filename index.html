@@ -19,18 +19,51 @@
         ::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 9999px; }
         ::-webkit-scrollbar-thumb:hover { background: #94a3b8; }
         @media print {
-            body { background: white !important; color: black !important; height: auto !important; overflow: visible !important; }
-            aside, header, button, .no-print { display: none !important; }
-            main { padding: 0 !important; background: white !important; overflow: visible !important; height: auto !important; display: block !important; }
-            .print-container { box-shadow: none !important; border: none !important; padding: 0 !important; margin: 0 !important; width: 100% !important; max-width: 100% !important; overflow: visible !important; height: auto !important; page-break-inside: avoid; }
-            * { -webkit-print-color-adjust: exact !important; print-color-adjust: exact !important; }
+            html, body, #app, main, div { 
+                height: auto !important; 
+                min-height: auto !important; 
+                max-height: none !important; 
+                overflow: visible !important; 
+                position: static !important; 
+            }
+            body { 
+                background: white !important; 
+                color: black !important; 
+            }
+            aside, header, button, .no-print, iframe { 
+                display: none !important; 
+            }
+            main { 
+                padding: 0 !important; 
+                margin: 0 !important; 
+                background: white !important; 
+                display: block !important; 
+                width: 100% !important; 
+            }
+            .print-container { 
+                box-shadow: none !important; 
+                border: none !important; 
+                padding: 0 !important; 
+                margin: 0 !important; 
+                width: 100% !important; 
+                max-width: 100% !important; 
+                overflow: visible !important; 
+                height: auto !important; 
+            }
+            tr, .bg-slate-50, .p-4, .p-5, .p-6 { 
+                page-break-inside: avoid; 
+            }
+            * { 
+                -webkit-print-color-adjust: exact !important; 
+                print-color-adjust: exact !important; 
+            }
         }
     </style>
 </head>
-<body class="bg-slate-950/5 text-slate-900 selection:bg-blue-600 selection:text-white">
+<body class="bg-slate-950/5 text-slate-900 selection:bg-emerald-600 selection:text-white">
 
     <!-- Toast Notification Container -->
-    <div id="toast-container" class="fixed top-6 left-1/2 -translate-x-1/2 z-50 pointer-events-none flex flex-col items-center gap-2"></div>
+    <div id="toast-container" class="fixed top-6 left-1/2 -translate-x-1/2 z-[100] pointer-events-none flex flex-col items-center gap-2"></div>
 
     <!-- Root Application Container -->
     <div id="app" class="min-h-screen flex flex-col">
@@ -38,8 +71,8 @@
         <div class="min-h-screen bg-slate-950 flex items-center justify-center">
             <div class="flex flex-col items-center gap-5">
                 <div class="relative w-16 h-16">
-                    <div class="absolute inset-0 rounded-full border-4 border-blue-500/20 animate-pulse"></div>
-                    <div class="absolute inset-0 rounded-full border-4 border-blue-600 border-t-transparent animate-spin"></div>
+                    <div class="absolute inset-0 rounded-full border-4 border-emerald-500/20 animate-pulse"></div>
+                    <div class="absolute inset-0 rounded-full border-4 border-emerald-500 border-t-transparent animate-spin"></div>
                 </div>
                 <p class="text-slate-300 font-semibold tracking-wider text-sm">MEMUAT SISTEM SIPRASA KUTIM...</p>
             </div>
@@ -49,7 +82,7 @@
     <!-- Application JavaScript -->
     <script>
         // --- Hubungkan URL Web App Google Apps Script di sini ---
-        const SCRIPT_URL = "https://script.google.com/macros/s/AKfycbzNp0uRRonx-QYSqQ_Ov7JHcaxVvyQxlEKp6cCW3U0yUbXePtc24xAzOqzkEa0GgKVa/exec";
+        const SCRIPT_URL = "https://script.google.com/macros/s/AKfycbwRY87S4j22x6ChGzP9JDQVyO3TSJOq2ukBw7VPBlkJghWH8QNZHneCI7Pn5EWBhhQO/exec";
 
         // --- Fungsi Sinkronisasi Data Otomatis ke Backend Apps Script & Spreadsheet ---
         async function syncDataToServer(schoolData) {
@@ -71,9 +104,11 @@
             role: null, // 'admin' | 'school' | null
             npsn: '',
             activeMenu: 'dashboard',
+            statusFilter: 'semua', // 'semua' | 'Terverifikasi' | 'Perlu Perbaikan' | 'Draf'
             schools: [
                 { 
                     npsn: '12345678', 
+                    password: 'password123',
                     nama: 'SDN 001 Sangatta Utara', 
                     status: 'Draf', 
                     kecamatan: 'Sangatta Utara', 
@@ -106,6 +141,7 @@
                 },
                 { 
                     npsn: '87654321', 
+                    password: 'sdn2bengalon',
                     nama: 'SDN 002 Bengalon', 
                     status: 'Terverifikasi', 
                     kecamatan: 'Bengalon', 
@@ -127,6 +163,7 @@
                 },
                 { 
                     npsn: '11223344', 
+                    password: '11223344',
                     nama: 'SDN 005 Sangkulirang', 
                     status: 'Perlu Perbaikan', 
                     kecamatan: 'Sangkulirang', 
@@ -146,7 +183,8 @@
             selectedUsulanForAdmin: null,
             toast: null,
             deleteTargetType: null,
-            deleteTargetIndex: null
+            deleteTargetIndex: null,
+            passwordEditIndex: null
         };
 
         function showToast(msg, type = 'success') {
@@ -175,59 +213,174 @@
         // --- Login Screen ---
         function renderLoginScreen() {
             return `
-                <div class="min-h-screen flex w-full bg-slate-950 overflow-hidden font-sans">
-                    <div class="hidden lg:flex w-5/12 bg-gradient-to-br from-slate-950 via-blue-950 to-indigo-950 text-white flex-col justify-between p-12 relative overflow-hidden">
-                        <div class="absolute inset-0 z-0">
-                            <img src="https://i.ibb.co.com/chs4HNwN/Burung-Enggang-Kalimantan-Hewan-Khas-Kalimantan-Timur-yang-Menjadi-Simbol-Kehormatan-Suku-Dayak.webp" alt="Burung Enggang" class="w-full h-full object-cover opacity-85 scale-105"/>
-                            <div class="absolute inset-0 bg-gradient-to-t from-slate-950/90 via-blue-950/70 to-slate-950/60 backdrop-blur-[1px]"></div>
+                <div class="min-h-screen flex w-full bg-slate-950 overflow-hidden font-sans selection:bg-emerald-600 selection:text-white">
+                    <!-- Left Hero Section (Visual Emerald & Teal Modern) -->
+                    <div class="hidden lg:flex w-5/12 bg-gradient-to-br from-slate-950 via-emerald-950 to-teal-950 text-white flex-col justify-between p-12 relative overflow-hidden">
+                        <!-- Hero Background Image & Layer Effects -->
+                        <div class="absolute inset-0 z-0 overflow-hidden">
+                            <img src="https://i.ibb.co.com/TDS85dZK/Burung-Enggang-atau-rangkong-Ikon-Keanekaragaman-Hayati-Kalimantan-800x450.webp" alt="Burung Enggang Kutai Timur" class="w-full h-full object-cover object-center opacity-75 transition-opacity duration-700"/>
+                            <div class="absolute inset-0 bg-gradient-to-t from-slate-950 via-slate-950/70 to-teal-950/50 backdrop-blur-[1px]"></div>
+                            <!-- Decorative Glowing Orbs -->
+                            <div class="absolute -top-24 -left-24 w-96 h-96 bg-emerald-600/20 rounded-full blur-3xl"></div>
+                            <div class="absolute bottom-10 right-0 w-80 h-80 bg-teal-500/20 rounded-full blur-3xl"></div>
                         </div>
+
+                        <!-- Top Brand Header -->
                         <div class="relative z-10">
-                            <div class="flex items-center gap-3.5 mb-16">
-                                <div class="bg-white/10 backdrop-blur-xl p-2 rounded-xl border border-white/20 shadow-xl flex items-center justify-center w-14 h-14">
+                            <div class="flex items-center gap-4 mb-14">
+                                <div class="bg-white/10 backdrop-blur-md p-2.5 rounded-2xl border border-white/20 shadow-2xl flex items-center justify-center w-14 h-14 ring-1 ring-white/30">
+                                    <img src="https://i.ibb.co.com/wZd5Vn8h/Logo-Kabupaten-Kutai-Timur.png" alt="Logo Kutai Timur" class="w-full h-full object-contain drop-shadow"/>
+                                </div>
+                                <div>
+                                    <div class="flex items-center gap-2">
+                                        <h2 class="text-xl font-black tracking-wider text-white">SIPRASA</h2>
+                                        <span class="px-2 py-0.5 text-[9px] font-black uppercase tracking-widest bg-emerald-500/30 text-emerald-300 rounded-full border border-emerald-400/30">v2.5</span>
+                                    </div>
+                                    <p class="text-[10px] text-teal-300 uppercase tracking-widest font-extrabold flex items-center gap-1.5 mt-0.5">
+                                        <span class="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-ping"></span>
+                                        KABUPATEN KUTAI TIMUR
+                                    </p>
+                                </div>
+                            </div>
+
+                            <div class="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-full bg-emerald-500/10 border border-emerald-400/20 backdrop-blur-md text-emerald-300 text-xs font-semibold mb-6">
+                                <i class="fa-solid fa-building-columns text-emerald-400 text-xs"></i>
+                                <span>Dinas Pendidikan & Kebudayaan</span>
+                            </div>
+
+                            <h1 class="text-4xl xl:text-5xl font-black leading-tight mb-5 tracking-tight text-white drop-shadow-lg">
+                                Sistem Informasi <br/>
+                                <span class="text-transparent bg-clip-text bg-gradient-to-r from-emerald-300 via-teal-200 to-amber-300">Sarana & Prasarana</span>
+                            </h1>
+                            <p class="text-slate-300 text-sm leading-relaxed max-w-md font-normal">Platform pendataan digital terpadu untuk monitoring, verifikasi, dan inventarisasi sarana prasarana Sekolah Dasar se-Kabupaten Kutai Timur.</p>
+                        </div>
+
+                        <!-- Footer Info Badge -->
+                        <div class="relative z-10 pt-6 border-t border-white/10 flex items-center justify-between text-xs text-slate-400 font-medium">
+                            <div class="flex items-center gap-2">
+                                <span class="w-2 h-2 rounded-full bg-emerald-400 animate-pulse"></span>
+                                <span class="text-slate-300 font-semibold">Cloud Infrastructure &bull; 2026</span>
+                            </div>
+                            <span class="text-[11px] font-mono text-slate-500">Kutim Smart Gov</span>
+                        </div>
+                    </div>
+
+                    <!-- Right Form Section -->
+                    <div class="w-full lg:w-7/12 flex items-center justify-center p-6 sm:p-12 bg-gradient-to-br from-slate-900 via-slate-950 to-emerald-950/40 relative overflow-y-auto">
+                        <!-- Subtle Background Elements -->
+                        <div class="absolute top-0 right-0 w-96 h-96 bg-emerald-600/5 rounded-full blur-3xl pointer-events-none"></div>
+
+                        <div class="w-full max-w-md my-auto relative z-10 bg-slate-900/90 backdrop-blur-xl p-8 sm:p-10 rounded-3xl border border-slate-800 shadow-2xl ring-1 ring-white/5">
+                            <!-- Mobile Header Logo -->
+                            <div class="flex lg:hidden items-center gap-3 mb-8 pb-6 border-b border-slate-800">
+                                <div class="bg-slate-800 p-2 rounded-xl border border-slate-700 w-12 h-12 flex items-center justify-center shrink-0">
                                     <img src="https://i.ibb.co.com/wZd5Vn8h/Logo-Kabupaten-Kutai-Timur.png" alt="Logo Kutai Timur" class="w-full h-full object-contain"/>
                                 </div>
                                 <div>
-                                    <h2 class="text-xl font-black tracking-wider text-white">SIPRASA</h2>
-                                    <p class="text-[11px] text-blue-400 uppercase tracking-widest font-extrabold">Kutai Timur</p>
+                                    <h2 class="text-lg font-black text-white">SIPRASA KUTIM</h2>
+                                    <p class="text-[10px] text-emerald-400 font-bold uppercase tracking-wider">Dinas Pendidikan Kab. Kutai Timur</p>
                                 </div>
                             </div>
-                            <h1 class="text-4xl font-black leading-tight mb-4 tracking-tight text-white drop-shadow-md">
-                                Sistem Informasi <br/>
-                                <span class="text-transparent bg-clip-text bg-gradient-to-r from-blue-400 via-indigo-300 to-emerald-400">Sarana & Prasarana</span>
-                            </h1>
-                            <p class="text-slate-200 text-sm leading-relaxed max-w-sm font-medium">Platform pendataan terpadu sarana dan prasarana Sekolah Dasar untuk Dinas Pendidikan Kabupaten Kutai Timur.</p>
-                        </div>
-                        <div class="relative z-10 flex items-center gap-2.5 text-xs text-slate-300 font-semibold">
-                            <span class="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></span>
-                            <span>Secure Government Cloud &bull; 2026</span>
-                        </div>
-                    </div>
-                    <div class="w-full lg:w-7/12 flex items-center justify-center p-6 sm:p-10 bg-gradient-to-br from-slate-50 via-white to-blue-50/30 relative overflow-y-auto">
-                        <div class="w-full max-w-sm my-auto relative z-10">
-                            <div class="mb-6">
-                                <h2 class="text-2xl font-black text-slate-900 mb-1.5 tracking-tight">Portal Masuk Resmi</h2>
-                                <p class="text-slate-500 text-xs sm:text-sm font-medium">Pilih jenis akun Anda untuk mengakses sistem pendataan sarpras.</p>
+
+                            <div class="mb-8">
+                                <h2 class="text-2xl sm:text-3xl font-black text-white mb-2 tracking-tight">Portal Masuk Resmi</h2>
+                                <p class="text-slate-400 text-xs sm:text-sm font-normal leading-relaxed">Silakan pilih peran akun dan masukkan kredensial Anda untuk melanjutkan ke dashboard.</p>
                             </div>
-                            <div class="flex bg-slate-200/70 p-1 rounded-xl mb-5 border border-slate-300/60 shadow-inner">
-                                <button type="button" id="tab-sekolah" class="flex-1 py-2.5 text-xs font-extrabold rounded-lg transition-all bg-white shadow-md text-blue-950">Login Sekolah (NPSN)</button>
-                                <button type="button" id="tab-admin" class="flex-1 py-2.5 text-xs font-extrabold rounded-lg transition-all text-slate-500 hover:text-slate-800">Login Admin Dinas</button>
+
+                            <!-- Modern Segmented Tab Control -->
+                            <div class="flex bg-slate-950/80 p-1.5 rounded-2xl mb-6 border border-slate-800 shadow-inner">
+                                <button type="button" id="tab-sekolah" class="flex-1 py-3 text-xs font-black rounded-xl transition-all duration-300 bg-gradient-to-r from-emerald-600 to-teal-600 text-white shadow-lg flex items-center justify-center gap-2">
+                                    <i class="fa-solid fa-school text-xs"></i>
+                                    <span>Login Sekolah</span>
+                                </button>
+                                <button type="button" id="tab-admin" class="flex-1 py-3 text-xs font-bold rounded-xl transition-all duration-300 text-slate-400 hover:text-white flex items-center justify-center gap-2">
+                                    <i class="fa-solid fa-user-shield text-xs"></i>
+                                    <span>Login Admin Dinas</span>
+                                </button>
                             </div>
-                            <div id="login-error" class="hidden mb-5 p-3.5 bg-rose-50 border border-rose-200 rounded-xl text-rose-700 text-xs font-bold flex items-center gap-2.5">
-                                <i class="fa-solid fa-triangle-exclamation"></i> <span id="error-text"></span>
+
+                            <!-- Error Alert Box -->
+                            <div id="login-error" class="hidden mb-6 p-4 bg-rose-500/10 border border-rose-500/30 rounded-2xl text-rose-400 text-xs font-semibold flex items-start gap-3 animate-fade-in">
+                                <i class="fa-solid fa-circle-exclamation text-base text-rose-500 shrink-0 mt-0.5"></i>
+                                <span id="error-text" class="leading-relaxed"></span>
                             </div>
-                            <form id="login-form" class="space-y-4">
-                                <div id="school-input-group">
-                                    <label class="block text-[11px] font-bold text-slate-600 uppercase tracking-wider mb-1.5">Nomor Pokok Sekolah Nasional (NPSN) <span class="text-rose-500">*</span></label>
-                                    <input type="text" id="npsn-input" placeholder="Contoh: 12345678" maxlength="8" inputmode="numeric" class="w-full px-3.5 py-3 border border-slate-200 rounded-xl focus:ring-4 focus:ring-blue-600/10 focus:border-blue-700 transition-all outline-none text-slate-800 bg-slate-50 font-medium text-sm shadow-inner"/>
-                                    <p class="text-[10px] text-slate-400 mt-1">Contoh NPSN demo: 12345678, 87654321, 11223344</p>
+
+                            <!-- Main Login Form -->
+                            <form id="login-form" class="space-y-5">
+                                <div id="school-input-group" class="space-y-4">
+                                    <div>
+                                        <label class="block text-[11px] font-extrabold text-slate-300 uppercase tracking-wider mb-2 flex items-center justify-between">
+                                            <span>NPSN Sekolah (7-8 Digit)</span>
+                                            <span class="text-rose-400">*</span>
+                                        </label>
+                                        <div class="relative group">
+                                            <div class="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none text-slate-500 group-focus-within:text-emerald-400 transition-colors">
+                                                <i class="fa-solid fa-hashtag text-sm"></i>
+                                            </div>
+                                            <input type="text" id="npsn-input" placeholder="Masukkan NPSN (contoh: 12345678)" maxlength="8" inputmode="numeric" class="w-full pl-11 pr-4 py-3.5 border border-slate-800 rounded-2xl focus:ring-2 focus:ring-emerald-500/40 focus:border-emerald-500 transition-all outline-none text-white placeholder:text-slate-600 bg-slate-950 font-medium text-sm shadow-inner"/>
+                                        </div>
+                                    </div>
+                                    <div>
+                                        <label class="block text-[11px] font-extrabold text-slate-300 uppercase tracking-wider mb-2 flex items-center justify-between">
+                                            <span>Kata Sandi Sekolah</span>
+                                            <span class="text-rose-400">*</span>
+                                        </label>
+                                        <div class="relative group">
+                                            <div class="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none text-slate-500 group-focus-within:text-emerald-400 transition-colors">
+                                                <i class="fa-solid fa-lock text-sm"></i>
+                                            </div>
+                                            <input type="password" id="school-pass-input" placeholder="Masukkan Kata Sandi Sekolah" class="w-full pl-11 pr-12 py-3.5 border border-slate-800 rounded-2xl focus:ring-2 focus:ring-emerald-500/40 focus:border-emerald-500 transition-all outline-none text-white placeholder:text-slate-600 bg-slate-950 font-medium text-sm shadow-inner"/>
+                                            <button type="button" id="toggle-school-pass" class="absolute inset-y-0 right-0 pr-4 flex items-center text-slate-500 hover:text-slate-300 transition-colors">
+                                                <i class="fa-solid fa-eye text-sm" id="toggle-school-pass-icon"></i>
+                                            </button>
+                                        </div>
+                                    </div>
+
+                                    <!-- Interactive Demo Quick Fill Badges -->
+                                    <div class="p-4 bg-slate-950/60 rounded-2xl border border-slate-800/80 space-y-2 text-xs">
+                                        <div class="flex items-center justify-between">
+                                            <span class="text-[10px] font-extrabold uppercase text-slate-400 tracking-wider flex items-center gap-1.5">
+                                                <i class="fa-solid fa-bolt text-amber-400"></i> Akun Demo Cepat (Klik):
+                                            </span>
+                                        </div>
+                                        <div class="flex flex-wrap gap-2 pt-1">
+                                            <button type="button" onclick="fillDemoLogin('12345678', 'password123')" class="px-3 py-1.5 rounded-xl bg-slate-800/80 hover:bg-emerald-600/30 text-emerald-300 hover:text-white border border-slate-700/60 hover:border-emerald-500/50 text-[11px] font-mono font-bold transition-all flex items-center gap-1.5 group">
+                                                <span>SDN 001 (12345678)</span>
+                                                <i class="fa-solid fa-arrow-right text-[9px] opacity-0 group-hover:opacity-100 transition-opacity"></i>
+                                            </button>
+                                            <button type="button" onclick="fillDemoLogin('87654321', 'sdn2bengalon')" class="px-3 py-1.5 rounded-xl bg-slate-800/80 hover:bg-teal-600/30 text-teal-300 hover:text-white border border-slate-700/60 hover:border-teal-500/50 text-[11px] font-mono font-bold transition-all flex items-center gap-1.5 group">
+                                                <span>SDN 002 (87654321)</span>
+                                                <i class="fa-solid fa-arrow-right text-[9px] opacity-0 group-hover:opacity-100 transition-opacity"></i>
+                                            </button>
+                                        </div>
+                                    </div>
                                 </div>
-                                <div id="admin-input-group" class="hidden">
-                                    <label class="block text-[11px] font-bold text-slate-600 uppercase tracking-wider mb-1.5">Kata Sandi Administrator <span class="text-rose-500">*</span></label>
-                                    <input type="password" id="admin-pass-input" placeholder="Masukkan kata sandi (admin123)" class="w-full px-3.5 py-3 border border-slate-200 rounded-xl focus:ring-4 focus:ring-blue-600/10 focus:border-blue-700 transition-all outline-none text-slate-800 bg-slate-50 font-medium text-sm shadow-inner"/>
+
+                                <div id="admin-input-group" class="hidden space-y-4">
+                                    <div>
+                                        <label class="block text-[11px] font-extrabold text-slate-300 uppercase tracking-wider mb-2 flex items-center justify-between">
+                                            <span>Kata Sandi Administrator</span>
+                                            <span class="text-rose-400">*</span>
+                                        </label>
+                                        <div class="relative group">
+                                            <div class="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none text-slate-500 group-focus-within:text-emerald-400 transition-colors">
+                                                <i class="fa-solid fa-shield-halved text-sm"></i>
+                                            </div>
+                                            <input type="password" id="admin-pass-input" placeholder="Masukkan kata sandi (admin123)" class="w-full pl-11 pr-12 py-3.5 border border-slate-800 rounded-2xl focus:ring-2 focus:ring-emerald-500/40 focus:border-emerald-500 transition-all outline-none text-white placeholder:text-slate-600 bg-slate-950 font-medium text-sm shadow-inner"/>
+                                            <button type="button" id="toggle-admin-pass" class="absolute inset-y-0 right-0 pr-4 flex items-center text-slate-500 hover:text-slate-300 transition-colors">
+                                                <i class="fa-solid fa-eye text-sm" id="toggle-admin-pass-icon"></i>
+                                            </button>
+                                        </div>
+                                    </div>
+                                    <div class="p-3 bg-emerald-500/10 rounded-xl border border-emerald-500/20 text-[11px] text-emerald-300 font-medium flex items-center gap-2">
+                                        <i class="fa-solid fa-circle-info text-emerald-400"></i>
+                                        <span>Sandi default Super Admin Dinas: <strong class="font-mono text-white">admin123</strong></span>
+                                    </div>
                                 </div>
-                                <button type="submit" class="w-full py-3 text-xs sm:text-sm shadow-lg bg-gradient-to-r from-blue-900 via-blue-800 to-indigo-900 text-white font-bold rounded-xl hover:shadow-xl transition-all flex items-center justify-center gap-2">
-                                    <span>Masuk ke Dashboard</span>
-                                    <i class="fa-solid fa-arrow-right"></i>
+
+                                <button type="submit" class="w-full py-4 text-xs sm:text-sm shadow-xl bg-gradient-to-r from-emerald-600 via-teal-600 to-emerald-700 text-white font-black rounded-2xl hover:from-emerald-500 hover:to-teal-500 transition-all duration-300 hover:shadow-emerald-600/25 hover:shadow-2xl flex items-center justify-center gap-3 tracking-wide transform active:scale-[0.99] cursor-pointer mt-2">
+                                    <span>MASUK KE DASHBOARD</span>
+                                    <i class="fa-solid fa-arrow-right-long text-base transition-transform group-hover:translate-x-1"></i>
                                 </button>
                             </form>
                         </div>
@@ -242,21 +395,67 @@
             const tabAdmin = document.getElementById('tab-admin');
             const schoolGroup = document.getElementById('school-input-group');
             const adminGroup = document.getElementById('admin-input-group');
+
+            const activeTabClass = 'flex-1 py-3 text-xs font-black rounded-xl transition-all duration-300 bg-gradient-to-r from-emerald-600 to-teal-600 text-white shadow-lg flex items-center justify-center gap-2';
+            const inactiveTabClass = 'flex-1 py-3 text-xs font-bold rounded-xl transition-all duration-300 text-slate-400 hover:text-white flex items-center justify-center gap-2';
             
             tabSekolah.onclick = () => {
                 mode = 'sekolah';
-                tabSekolah.className = 'flex-1 py-2.5 text-xs font-extrabold rounded-lg transition-all bg-white shadow-md text-blue-950';
-                tabAdmin.className = 'flex-1 py-2.5 text-xs font-extrabold rounded-lg transition-all text-slate-500 hover:text-slate-800';
+                tabSekolah.className = activeTabClass;
+                tabAdmin.className = inactiveTabClass;
                 schoolGroup.classList.remove('hidden');
                 adminGroup.classList.add('hidden');
             };
 
             tabAdmin.onclick = () => {
                 mode = 'admin';
-                tabAdmin.className = 'flex-1 py-2.5 text-xs font-extrabold rounded-lg transition-all bg-white shadow-md text-blue-950';
-                tabSekolah.className = 'flex-1 py-2.5 text-xs font-extrabold rounded-lg transition-all text-slate-500 hover:text-slate-800';
+                tabAdmin.className = activeTabClass;
+                tabSekolah.className = inactiveTabClass;
                 adminGroup.classList.remove('hidden');
                 schoolGroup.classList.add('hidden');
+            };
+
+            // Toggle Password Visibility untuk Sekolah
+            const toggleSchoolBtn = document.getElementById('toggle-school-pass');
+            if (toggleSchoolBtn) {
+                toggleSchoolBtn.onclick = () => {
+                    const passInput = document.getElementById('school-pass-input');
+                    const icon = document.getElementById('toggle-school-pass-icon');
+                    if (passInput.type === 'password') {
+                        passInput.type = 'text';
+                        icon.className = 'fa-solid fa-eye-slash text-sm text-emerald-400';
+                    } else {
+                        passInput.type = 'password';
+                        icon.className = 'fa-solid fa-eye text-sm text-slate-500';
+                    }
+                };
+            }
+
+            // Toggle Password Visibility untuk Admin
+            const toggleAdminBtn = document.getElementById('toggle-admin-pass');
+            if (toggleAdminBtn) {
+                toggleAdminBtn.onclick = () => {
+                    const passInput = document.getElementById('admin-pass-input');
+                    const icon = document.getElementById('toggle-admin-pass-icon');
+                    if (passInput.type === 'password') {
+                        passInput.type = 'text';
+                        icon.className = 'fa-solid fa-eye-slash text-sm text-emerald-400';
+                    } else {
+                        passInput.type = 'password';
+                        icon.className = 'fa-solid fa-eye text-sm text-slate-500';
+                    }
+                };
+            }
+
+            // Quick Fill Demo Login Function
+            window.fillDemoLogin = function(npsn, password) {
+                const npsnInput = document.getElementById('npsn-input');
+                const passInput = document.getElementById('school-pass-input');
+                if (npsnInput && passInput) {
+                    npsnInput.value = npsn;
+                    passInput.value = password;
+                    showToast(`Kredensial demo (${npsn}) berhasil diisikan!`, "success");
+                }
             };
 
             document.getElementById('login-form').onsubmit = (e) => {
@@ -265,31 +464,41 @@
                 const errText = document.getElementById('error-text');
                 
                 if (mode === 'sekolah') {
-                    const val = document.getElementById('npsn-input').value.trim();
-                    if (val.length < 7 || val.length > 8) {
+                    const npsnVal = document.getElementById('npsn-input').value.trim();
+                    const passVal = document.getElementById('school-pass-input').value;
+
+                    if (npsnVal.length < 7 || npsnVal.length > 8) {
                         errText.textContent = "NPSN harus terdiri dari 7 atau 8 digit angka.";
                         errBox.classList.remove('hidden');
                         return;
                     }
-                    State.role = 'school';
-                    State.npsn = val;
-                    State.activeMenu = 'beranda';
-                    if(!State.schools.find(s => s.npsn === val)) {
-                        State.schools.push({ 
-                            npsn: val, 
-                            nama: 'Sekolah Dasar Negeri ' + val, 
-                            status: 'Draf', 
-                            kecamatan: 'Sangatta Utara', 
-                            alamat: 'Kutai Timur',
-                            kepalaSekolah: 'Kepala Sekolah, S.Pd',
-                            nipKepsek: '19700101 199503 1 001',
-                            jumlahSiswa: 150,
-                            jumlahGuru: 10,
-                            lat: '0.505295',
-                            lng: '117.514038',
-                            tanah:[], bangunan:[], ruangan:[], inventaris:[], dokumen:[], usulan:[], utilitas:{ sumberAir:'PDAM', sumberListrik:'PLN', dayaListrik:2200, internet:'Fiber Optic (Indihome/dll)' } 
-                        });
+
+                    if (!passVal) {
+                        errText.textContent = "Masukkan kata sandi sekolah Anda.";
+                        errBox.classList.remove('hidden');
+                        return;
                     }
+
+                    // Cari akun sekolah berdasarkan NPSN
+                    const foundSchool = State.schools.find(s => s.npsn === npsnVal);
+
+                    if (!foundSchool) {
+                        errText.textContent = "NPSN belum terdaftar. Silakan hubungi Admin Dinas untuk membuatkan akun sekolah.";
+                        errBox.classList.remove('hidden');
+                        return;
+                    }
+
+                    // Verifikasi password (jika akun tidak memiliki password khusus, password default adalah NPSN)
+                    const validPassword = foundSchool.password || foundSchool.npsn;
+                    if (passVal !== validPassword) {
+                        errText.textContent = "Kata sandi sekolah salah. Pastikan password yang dimasukkan tepat.";
+                        errBox.classList.remove('hidden');
+                        return;
+                    }
+
+                    State.role = 'school';
+                    State.npsn = npsnVal;
+                    State.activeMenu = 'beranda';
                 } else {
                     const pass = document.getElementById('admin-pass-input').value;
                     if (pass !== 'admin123') {
@@ -300,7 +509,7 @@
                     State.role = 'admin';
                     State.activeMenu = 'dashboard';
                 }
-                showToast("Login berhasil!", "success");
+                showToast("Login berhasil! Selamat datang di SIPRASA Kutai Timur.", "success");
                 render();
             };
         }
@@ -323,21 +532,21 @@
 
             return `
                 <div class="flex h-screen overflow-hidden bg-slate-950/5 font-sans">
-                    <aside class="w-64 bg-gradient-to-b from-slate-950 via-blue-950 to-slate-950 text-white flex flex-col shrink-0 shadow-xl border-r border-slate-800">
+                    <aside class="w-64 bg-gradient-to-b from-slate-950 via-emerald-950 to-slate-950 text-white flex flex-col shrink-0 shadow-xl border-r border-slate-800">
                         <div class="h-20 flex items-center px-5 border-b border-slate-800 bg-slate-950/60 backdrop-blur-xl">
                             <div class="bg-white p-1.5 rounded-xl shadow-lg w-10 h-10 flex items-center justify-center shrink-0">
                                 <img src="https://i.ibb.co.com/wZd5Vn8h/Logo-Kabupaten-Kutai-Timur.png" alt="Logo" class="w-full h-full object-contain"/>
                             </div>
                             <div class="ml-3">
                                 <h2 class="font-black text-sm text-white">SIPRASA KUTIM</h2>
-                                <p class="text-blue-400 text-[9px] uppercase tracking-widest font-extrabold">Super Admin Dinas</p>
+                                <p class="text-emerald-400 text-[9px] uppercase tracking-widest font-extrabold">Super Admin Dinas</p>
                             </div>
                         </div>
                         <nav class="flex-1 p-3.5 space-y-1.5 overflow-y-auto text-xs font-medium">
-                            <button onclick="State.activeMenu='dashboard';render();" class="w-full flex items-center gap-3 px-3.5 py-3 rounded-xl font-bold ${State.activeMenu==='dashboard'?'bg-gradient-to-r from-blue-600 to-indigo-600 text-white shadow-lg':'text-slate-400 hover:bg-white/10 hover:text-white'}"><i class="fa-solid fa-chart-pie w-4"></i> Dashboard Super Admin</button>
+                            <button onclick="State.activeMenu='dashboard';render();" class="w-full flex items-center gap-3 px-3.5 py-3 rounded-xl font-bold ${State.activeMenu==='dashboard'?'bg-gradient-to-r from-emerald-600 to-teal-600 text-white shadow-lg':'text-slate-400 hover:bg-white/10 hover:text-white'}"><i class="fa-solid fa-chart-pie w-4"></i> Dashboard Super Admin</button>
                             
                             <div class="space-y-1">
-                                <button onclick="toggleAdminDropdown()" class="w-full flex items-center justify-between px-3.5 py-3 rounded-xl font-bold ${isRekapActive?'bg-blue-900/60 text-white':'text-slate-400 hover:bg-white/10 hover:text-white'}">
+                                <button onclick="toggleAdminDropdown()" class="w-full flex items-center justify-between px-3.5 py-3 rounded-xl font-bold ${isRekapActive?'bg-emerald-950/80 text-white border border-emerald-500/20':'text-slate-400 hover:bg-white/10 hover:text-white'}">
                                     <div class="flex items-center gap-3">
                                         <i class="fa-solid fa-school-flag w-4"></i>
                                         <span>Data & Rekap Sekolah</span>
@@ -345,13 +554,13 @@
                                     <i id="dropdown-arrow" class="fa-solid fa-chevron-down text-[10px] transition-transform ${isRekapActive ? 'rotate-180' : ''}"></i>
                                 </button>
                                 <div id="admin-dropdown-menu" class="${isRekapActive ? '' : 'hidden'} pl-3 space-y-1 pt-1">
-                                    <button onclick="State.activeMenu='rekap-semua';render();" class="w-full flex items-center gap-2.5 px-3 py-2 rounded-lg font-bold text-xs ${State.activeMenu==='rekap-semua'?'bg-blue-600 text-white shadow-md':'text-slate-400 hover:bg-white/10 hover:text-white'}">
+                                    <button onclick="State.activeMenu='rekap-semua';render();" class="w-full flex items-center gap-2.5 px-3 py-2 rounded-lg font-bold text-xs ${State.activeMenu==='rekap-semua'?'bg-emerald-600 text-white shadow-md':'text-slate-400 hover:bg-white/10 hover:text-white'}">
                                         <i class="fa-solid fa-list-check w-3.5"></i> Rekap Semua Sekolah
                                     </button>
-                                    <button onclick="State.activeMenu='semua-usulan';render();" class="w-full flex items-center gap-2.5 px-3 py-2 rounded-lg font-bold text-xs ${State.activeMenu==='semua-usulan'?'bg-blue-600 text-white shadow-md':'text-slate-400 hover:bg-white/10 hover:text-white'}">
+                                    <button onclick="State.activeMenu='semua-usulan';render();" class="w-full flex items-center gap-2.5 px-3 py-2 rounded-lg font-bold text-xs ${State.activeMenu==='semua-usulan'?'bg-emerald-600 text-white shadow-md':'text-slate-400 hover:bg-white/10 hover:text-white'}">
                                         <i class="fa-solid fa-file-invoice w-3.5"></i> Daftar Semua Usulan
                                     </button>
-                                    <button onclick="State.activeMenu='grafik-sarpras';render();" class="w-full flex items-center gap-2.5 px-3 py-2 rounded-lg font-bold text-xs ${State.activeMenu==='grafik-sarpras'?'bg-blue-600 text-white shadow-md':'text-slate-400 hover:bg-white/10 hover:text-white'}">
+                                    <button onclick="State.activeMenu='grafik-sarpras';render();" class="w-full flex items-center gap-2.5 px-3 py-2 rounded-lg font-bold text-xs ${State.activeMenu==='grafik-sarpras'?'bg-emerald-600 text-white shadow-md':'text-slate-400 hover:bg-white/10 hover:text-white'}">
                                         <i class="fa-solid fa-chart-line w-3.5"></i> Grafik Analitik
                                     </button>
                                 </div>
@@ -364,11 +573,11 @@
                     <main class="flex-1 flex flex-col min-w-0 overflow-hidden bg-slate-50">
                         <header class="h-20 bg-white border-b border-slate-200 px-8 flex items-center justify-between shrink-0 shadow-sm">
                             <div>
-                                <span class="text-[10px] font-extrabold uppercase tracking-widest text-blue-700 bg-blue-50 px-2.5 py-0.5 rounded-full border border-blue-100">Dinas Pendidikan Kabupaten Kutai Timur</span>
+                                <span class="text-[10px] font-extrabold uppercase tracking-widest text-emerald-800 bg-emerald-50 px-2.5 py-0.5 rounded-full border border-emerald-200">Dinas Pendidikan Kabupaten Kutai Timur</span>
                                 <h1 class="text-xl font-black text-slate-900 tracking-tight mt-0.5">Pengawasan Sekolah & Bidang Pembinaan SD</h1>
                             </div>
                             <div class="flex items-center gap-3 pl-5 border-l border-slate-200">
-                                <div class="h-10 w-10 bg-blue-900 text-white rounded-xl flex items-center justify-center font-black text-xs shadow-lg">SA</div>
+                                <div class="h-10 w-10 bg-emerald-900 text-white rounded-xl flex items-center justify-center font-black text-xs shadow-lg">SA</div>
                                 <div><p class="text-xs font-extrabold text-slate-900 leading-tight">Super Admin Dinas</p><p class="text-[10px] text-slate-500">Bidang Pembinaan SD</p></div>
                             </div>
                         </header>
@@ -383,29 +592,71 @@
                     </main>
                 </div>
 
-                <!-- Modal Tambah Sekolah Baru oleh Super Admin -->
+                <!-- Modal Generate User & Tambah Sekolah Baru oleh Super Admin -->
                 <div id="modal-admin-add-school" class="fixed inset-0 z-50 hidden bg-slate-950/60 backdrop-blur-sm flex items-center justify-center p-4">
-                    <div class="bg-white rounded-2xl max-w-sm w-full p-6 shadow-2xl space-y-5 animate-fade-in">
+                    <div class="bg-white rounded-2xl max-w-md w-full p-6 shadow-2xl space-y-5 animate-fade-in">
                         <div class="flex justify-between items-center border-b pb-3">
-                            <h3 class="text-base font-black text-slate-900">Tambah Sekolah Baru</h3>
+                            <div>
+                                <h3 class="text-base font-black text-slate-900">Generate Akun Sekolah Baru</h3>
+                                <p class="text-[11px] text-slate-500">Buat NPSN & kata sandi agar sekolah dapat login tanpa salah sekolah.</p>
+                            </div>
                             <button onclick="closeAdminAddSchoolModal()" class="text-slate-400 hover:text-slate-600 text-base font-bold"><i class="fa-solid fa-xmark"></i></button>
+                        </div>
+                        <div id="admin-add-school-error" class="hidden p-3 bg-rose-50 border border-rose-200 rounded-xl text-rose-700 text-xs font-bold flex items-center gap-2">
+                            <i class="fa-solid fa-triangle-exclamation"></i> <span id="admin-add-school-error-text"></span>
                         </div>
                         <form onsubmit="handleAdminAddSchool(event)" class="space-y-3.5">
                             <div>
-                                <label class="block text-[10px] font-bold text-slate-600 uppercase mb-1.5">NPSN (7-8 Digit) <span class="text-rose-500">*</span></label>
-                                <input type="text" id="admin-add-npsn" placeholder="Contoh: 12345678" maxlength="8" required class="w-full px-3.5 py-2.5 border rounded-xl font-mono font-bold bg-slate-50 text-xs"/>
+                                <label class="block text-[10px] font-bold text-slate-600 uppercase mb-1">NPSN (7-8 Digit Angka) <span class="text-rose-500">*</span></label>
+                                <input type="text" id="admin-add-npsn" placeholder="Contoh: 12345678" maxlength="8" required class="w-full px-3.5 py-2.5 border rounded-xl font-mono font-bold bg-slate-50 text-xs focus:ring-2 focus:ring-emerald-600 outline-none" oninput="hideAdminAddSchoolError()"/>
                             </div>
                             <div>
-                                <label class="block text-[10px] font-bold text-slate-600 uppercase mb-1.5">Nama Sekolah <span class="text-rose-500">*</span></label>
+                                <label class="block text-[10px] font-bold text-slate-600 uppercase mb-1">Kata Sandi Login Sekolah <span class="text-rose-500">*</span></label>
+                                <div class="relative">
+                                    <input type="text" id="admin-add-password" placeholder="Bisa diset khusus atau gunakan NPSN" required class="w-full px-3.5 py-2.5 border rounded-xl font-mono font-bold bg-slate-50 text-xs focus:ring-2 focus:ring-emerald-600 outline-none pr-24"/>
+                                    <button type="button" onclick="autoGeneratePassword()" class="absolute right-1.5 top-1.5 px-2.5 py-1 bg-slate-200 hover:bg-slate-300 text-slate-800 text-[10px] font-bold rounded-lg transition-all">Acak Sandi</button>
+                                </div>
+                                <p class="text-[9px] text-slate-400 mt-1">Kata sandi ini digunakan operator sekolah untuk masuk ke instrumen sarpras sekolah tersebut.</p>
+                            </div>
+                            <div>
+                                <label class="block text-[10px] font-bold text-slate-600 uppercase mb-1">Nama Sekolah <span class="text-rose-500">*</span></label>
                                 <input type="text" id="admin-add-nama" placeholder="Contoh: SDN 008 Sangatta Utara" required class="w-full px-3.5 py-2.5 border rounded-xl font-medium bg-slate-50 text-xs"/>
                             </div>
                             <div>
-                                <label class="block text-[10px] font-bold text-slate-600 uppercase mb-1.5">Kecamatan <span class="text-rose-500">*</span></label>
+                                <label class="block text-[10px] font-bold text-slate-600 uppercase mb-1">Kecamatan <span class="text-rose-500">*</span></label>
                                 <input type="text" id="admin-add-kec" placeholder="Contoh: Sangatta Utara" required class="w-full px-3.5 py-2.5 border rounded-xl font-medium bg-slate-50 text-xs"/>
                             </div>
                             <div class="flex justify-end gap-2.5 pt-2">
                                 <button type="button" onclick="closeAdminAddSchoolModal()" class="px-4 py-2.5 bg-slate-100 font-bold text-slate-700 rounded-xl text-xs">Batal</button>
-                                <button type="submit" class="px-5 py-2.5 bg-blue-900 text-white font-black rounded-xl shadow-lg hover:bg-blue-800 text-xs">Simpan</button>
+                                <button type="submit" class="px-5 py-2.5 bg-emerald-700 text-white font-black rounded-xl shadow-lg hover:bg-emerald-800 text-xs flex items-center gap-1.5">
+                                    <i class="fa-solid fa-user-plus"></i>
+                                    <span>Generate & Simpan User</span>
+                                </button>
+                            </div>
+                        </form>
+                    </div>
+                </div>
+
+                <!-- Modal Edit Kata Sandi Sekolah -->
+                <div id="modal-edit-password" class="fixed inset-0 z-50 hidden bg-slate-950/60 backdrop-blur-sm flex items-center justify-center p-4">
+                    <div class="bg-white rounded-2xl max-w-sm w-full p-6 shadow-2xl space-y-4 animate-fade-in text-xs">
+                        <div class="flex justify-between items-center border-b pb-3">
+                            <h3 class="text-base font-black text-slate-900">Ubah Kata Sandi Sekolah</h3>
+                            <button onclick="closeEditPasswordModal()" class="text-slate-400 hover:text-slate-600 text-base font-bold"><i class="fa-solid fa-xmark"></i></button>
+                        </div>
+                        <form onsubmit="handleSavePasswordEdit(event)" class="space-y-3">
+                            <div>
+                                <label class="block text-[10px] font-bold text-slate-500 uppercase">Sekolah</label>
+                                <p id="edit-pass-school-name" class="font-black text-slate-900 text-sm mt-0.5"></p>
+                                <p id="edit-pass-npsn" class="font-mono text-emerald-700 font-bold text-[11px]"></p>
+                            </div>
+                            <div>
+                                <label class="block text-[10px] font-bold text-slate-600 uppercase mb-1">Kata Sandi Baru <span class="text-rose-500">*</span></label>
+                                <input type="text" id="edit-pass-input" required class="w-full px-3.5 py-2.5 border rounded-xl font-mono font-bold bg-slate-50 text-xs focus:ring-2 focus:ring-emerald-600 outline-none"/>
+                            </div>
+                            <div class="flex justify-end gap-2 pt-2">
+                                <button type="button" onclick="closeEditPasswordModal()" class="px-4 py-2 bg-slate-100 font-bold text-slate-700 rounded-xl text-xs">Batal</button>
+                                <button type="submit" class="px-5 py-2 bg-emerald-700 text-white font-black rounded-xl shadow-lg hover:bg-emerald-800 text-xs">Simpan Password Baru</button>
                             </div>
                         </form>
                     </div>
@@ -418,7 +669,7 @@
                             <i class="fa-solid fa-triangle-exclamation"></i>
                         </div>
                         <h3 class="text-base font-black text-slate-900">Konfirmasi Hapus</h3>
-                        <p class="text-xs text-slate-600 font-medium">Apakah anda yakin akan menghapus data ini?</p>
+                        <p class="text-xs text-slate-600 font-medium">Apakah anda yakin akan menghapus data dan akun sekolah ini?</p>
                         <div class="flex justify-center gap-3 pt-2">
                             <button onclick="closeDeleteModal()" class="px-4 py-2 bg-slate-100 font-bold text-slate-700 rounded-xl text-xs">Batal</button>
                             <button onclick="executeDeleteSchool()" class="px-5 py-2 bg-rose-600 text-white font-black rounded-xl shadow-lg hover:bg-rose-700 text-xs">Ya, Hapus</button>
@@ -508,7 +759,7 @@
                 <div class="space-y-6">
                     <div class="grid grid-cols-2 md:grid-cols-4 gap-4">
                         <div class="bg-white p-5 rounded-2xl border border-slate-200 shadow-lg"><p class="text-[10px] font-extrabold uppercase text-slate-500">Total Sekolah</p><h3 class="text-3xl font-black text-slate-900 mt-1">${total}</h3></div>
-                        <div class="bg-white p-5 rounded-2xl border border-slate-200 shadow-lg"><p class="text-[10px] font-extrabold uppercase text-blue-600">Pending / Draf</p><h3 class="text-3xl font-black text-blue-600 mt-1">${draf}</h3></div>
+                        <div class="bg-white p-5 rounded-2xl border border-slate-200 shadow-lg"><p class="text-[10px] font-extrabold uppercase text-teal-600">Pending / Draf</p><h3 class="text-3xl font-black text-teal-600 mt-1">${draf}</h3></div>
                         <div class="bg-white p-5 rounded-2xl border border-slate-200 shadow-lg"><p class="text-[10px] font-extrabold uppercase text-rose-600">Perlu Perbaikan</p><h3 class="text-3xl font-black text-rose-600 mt-1">${perbaikan}</h3></div>
                         <div class="bg-white p-5 rounded-2xl border border-slate-200 shadow-lg"><p class="text-[10px] font-extrabold uppercase text-emerald-600">Terverifikasi Valid</p><h3 class="text-3xl font-black text-emerald-600 mt-1">${verified}</h3></div>
                     </div>
@@ -531,7 +782,7 @@
                         <div class="md:col-span-2 bg-white p-6 rounded-2xl border border-slate-200 shadow-lg space-y-3 flex flex-col justify-between">
                             <div class="flex justify-between items-center">
                                 <h4 class="text-xs font-black text-slate-700 uppercase tracking-wider">Kurva Tren Volume Usulan per Kategori Sarpras</h4>
-                                <span class="px-2.5 py-0.5 bg-indigo-50 text-indigo-700 font-bold text-[10px] rounded-lg">Berdasarkan Isian Sekolah</span>
+                                <span class="px-2.5 py-0.5 bg-emerald-50 text-emerald-800 font-bold text-[10px] rounded-lg border border-emerald-100">Berdasarkan Isian Sekolah</span>
                             </div>
                             <div class="h-36 w-full flex items-end justify-between px-2 pt-5 pb-2 relative border-b border-l border-slate-200">
                                 <div class="absolute inset-x-0 top-0 border-t border-slate-100"></div>
@@ -544,7 +795,7 @@
                                             <div class="absolute -top-7 bg-slate-900 text-white text-[9px] font-bold py-1 px-2 rounded-md opacity-0 group-hover:opacity-100 transition-opacity whitespace-nowrap shadow-md">
                                                 ${c.name}: ${c.usulan} Usulan
                                             </div>
-                                            <div style="height: ${heightPercent}%" class="w-6 bg-gradient-to-t from-blue-700 to-indigo-500 rounded-t-lg transition-all duration-300 group-hover:bg-blue-600 group-hover:scale-y-105 shadow"></div>
+                                            <div style="height: ${heightPercent}%" class="w-6 bg-gradient-to-t from-emerald-700 to-teal-500 rounded-t-lg transition-all duration-300 group-hover:bg-emerald-600 group-hover:scale-y-105 shadow"></div>
                                             <span class="text-[9px] font-bold text-slate-500 truncate w-14 text-center" title="${c.name}">${c.name.split(' ')[0]}</span>
                                         </div>
                                     `;
@@ -556,54 +807,83 @@
             `;
         }
 
-        function renderAdminGrafikSarpras() {
-            return renderAdminMainDashboard(State.schools.length, 2, 1, 1);
-        }
-
         function renderAdminRekapSekolah() {
+            const filteredSchools = State.schools.filter(s => {
+                if (State.statusFilter === 'semua') return true;
+                if (State.statusFilter === 'Draf') return s.status === 'Draf' || s.status === 'Dikirim';
+                return s.status === State.statusFilter;
+            });
+
             return `
                 <div class="bg-white rounded-2xl border border-slate-200 shadow-lg overflow-hidden p-6 space-y-5">
                     <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
                         <div>
                             <h3 class="text-lg font-black text-slate-900">Rekapitulasi Seluruh Data Isian Sekolah Dasar</h3>
-                            <p class="text-xs text-slate-500 mt-0.5">Manajemen entitas data profil dan akun sekolah.</p>
+                            <p class="text-xs text-slate-500 mt-0.5">Super Admin dapat memeriksa seluruh instrumen terkirim, mengelola akun sekolah, dan memverifikasi data.</p>
                         </div>
                         <div class="flex flex-wrap items-center gap-2">
                             <button onclick="downloadExcelTemplate()" class="px-3.5 py-2 bg-emerald-50 text-emerald-800 font-bold text-xs rounded-xl border border-emerald-200 hover:bg-emerald-100"><i class="fa-solid fa-file-excel mr-1.5"></i> Template</button>
                             <button onclick="exportAkunSekolah()" class="px-3.5 py-2 bg-amber-50 text-amber-800 font-bold text-xs rounded-xl border border-amber-200 hover:bg-amber-100"><i class="fa-solid fa-key mr-1.5"></i> Export Akun</button>
-                            <button onclick="document.getElementById('import-file-input').click()" class="px-3.5 py-2 bg-blue-50 text-blue-800 font-bold text-xs rounded-xl border border-blue-200 hover:bg-blue-100"><i class="fa-solid fa-file-import mr-1.5"></i> Import</button>
+                            <button onclick="document.getElementById('import-file-input').click()" class="px-3.5 py-2 bg-teal-50 text-teal-800 font-bold text-xs rounded-xl border border-teal-200 hover:bg-teal-100"><i class="fa-solid fa-file-import mr-1.5"></i> Import</button>
                             <input type="file" id="import-file-input" class="hidden" accept=".xlsx,.xls,.csv" onchange="handleImportData(event)"/>
-                            <button onclick="openAdminAddSchoolModal()" class="px-4 py-2 bg-blue-900 text-white font-bold text-xs rounded-xl shadow-lg hover:bg-blue-800"><i class="fa-solid fa-plus mr-1.5"></i> Tambah Sekolah</button>
+                            <button onclick="openAdminAddSchoolModal()" class="px-4 py-2 bg-emerald-800 text-white font-bold text-xs rounded-xl shadow-lg hover:bg-emerald-700"><i class="fa-solid fa-user-plus mr-1.5"></i> Generate User / Sekolah</button>
                         </div>
                     </div>
+
+                    <!-- Filter Status Pengiriman Data Sekolah -->
+                    <div class="flex items-center gap-2 pt-1 border-t border-slate-100 text-xs">
+                        <span class="font-bold text-slate-500 text-[11px] uppercase mr-1">Filter Status:</span>
+                        <button onclick="State.statusFilter='semua';render();" class="px-3 py-1 rounded-lg font-bold ${State.statusFilter==='semua'?'bg-slate-900 text-white':'bg-slate-100 text-slate-600 hover:bg-slate-200'}">Semua (${State.schools.length})</button>
+                        <button onclick="State.statusFilter='Terverifikasi';render();" class="px-3 py-1 rounded-lg font-bold ${State.statusFilter==='Terverifikasi'?'bg-emerald-600 text-white':'bg-emerald-50 text-emerald-700 hover:bg-emerald-100'}">Terverifikasi Valid</button>
+                        <button onclick="State.statusFilter='Perlu Perbaikan';render();" class="px-3 py-1 rounded-lg font-bold ${State.statusFilter==='Perlu Perbaikan'?'bg-rose-600 text-white':'bg-rose-50 text-rose-700 hover:bg-rose-100'}">Perlu Perbaikan</button>
+                        <button onclick="State.statusFilter='Draf';render();" class="px-3 py-1 rounded-lg font-bold ${State.statusFilter==='Draf'?'bg-teal-600 text-white':'bg-teal-50 text-teal-700 hover:bg-teal-100'}">Draf / Dikirim</button>
+                    </div>
+
                     <div class="overflow-x-auto">
                         <table class="w-full text-left text-xs whitespace-nowrap">
                             <thead class="bg-slate-50 text-slate-600 border-b font-black uppercase text-[10px]">
                                 <tr>
                                     <th class="px-5 py-3">NPSN</th>
-                                    <th class="px-5 py-3">Sekolah</th>
+                                    <th class="px-5 py-3">Password (Akses)</th>
+                                    <th class="px-5 py-3">Nama Sekolah</th>
+                                    <th class="px-5 py-3">Status Isian</th>
                                     <th class="px-5 py-3">Kecamatan</th>
                                     <th class="px-5 py-3">Siswa/Guru</th>
                                     <th class="px-5 py-3">Gedung/Ruang</th>
-                                    <th class="px-5 py-3">Internet</th>
-                                    <th class="px-5 py-3 text-right">Aksi</th>
+                                    <th class="px-5 py-3 text-right">Aksi Cek Isian</th>
                                 </tr>
                             </thead>
                             <tbody class="divide-y divide-slate-100">
-                                ${State.schools.map((s, idx) => `
-                                    <tr class="hover:bg-blue-50/50">
-                                        <td class="px-5 py-3.5 font-mono font-bold">${s.npsn}</td>
-                                        <td class="px-5 py-3.5 font-black text-slate-900">${s.nama}</td>
+                                ${filteredSchools.map((s, idx) => `
+                                    <tr class="hover:bg-emerald-50/40 transition-colors">
+                                        <td class="px-5 py-3.5 font-mono font-bold text-slate-800">${s.npsn}</td>
+                                        <td class="px-5 py-3.5 font-mono">
+                                            <div class="flex items-center gap-1.5">
+                                                <span class="px-2 py-0.5 bg-slate-100 text-slate-800 rounded font-bold border text-[11px]">${s.password || s.npsn}</span>
+                                                <button onclick="openEditPasswordModal(${idx})" class="text-emerald-700 hover:text-emerald-900 text-[10px]" title="Ubah Password"><i class="fa-solid fa-key"></i></button>
+                                            </div>
+                                        </td>
+                                        <td class="px-5 py-3.5 font-black text-slate-900 cursor-pointer hover:text-emerald-700 transition-colors" onclick="State.selectedSchoolForAdmin='${s.npsn}';render();">
+                                            <div class="flex items-center gap-2">
+                                                <i class="fa-solid fa-school text-emerald-800"></i>
+                                                <span class="underline decoration-emerald-300 underline-offset-4">${s.nama}</span>
+                                            </div>
+                                        </td>
+                                        <td class="px-5 py-3.5">
+                                            <span class="px-2.5 py-1 rounded-full text-[10px] font-black uppercase border ${s.status==='Terverifikasi'?'bg-emerald-50 text-emerald-700 border-emerald-200':s.status==='Perlu Perbaikan'?'bg-rose-50 text-rose-700 border-rose-200':'bg-teal-50 text-teal-700 border-teal-200'}">${s.status}</span>
+                                        </td>
                                         <td class="px-5 py-3.5 text-slate-600">${s.kecamatan || '-'}</td>
                                         <td class="px-5 py-3.5 font-bold">${s.jumlahSiswa || 0} / ${s.jumlahGuru || 0}</td>
-                                        <td class="px-5 py-3.5">${(s.bangunan||[]).length} / ${(s.ruangan||[]).length}</td>
-                                        <td class="px-5 py-3.5"><span class="px-2 py-0.5 bg-blue-50 text-blue-800 font-bold rounded-md text-[10px]">${s.utilitas?.internet || 'Fiber Optic'}</span></td>
+                                        <td class="px-5 py-3.5">${(s.bangunan||[]).length} Gedung / ${(s.ruangan||[]).length} Ruang</td>
                                         <td class="px-5 py-3.5 text-right flex items-center justify-end gap-2">
-                                            <button onclick="State.selectedSchoolForAdmin='${s.npsn}';render();" class="px-3 py-1.5 bg-blue-900 text-white font-bold rounded-lg text-[11px]">Detail Isian</button>
-                                            <button onclick="confirmDeleteSchool(${idx})" class="px-2.5 py-1.5 bg-rose-50 text-rose-700 font-bold rounded-lg text-[11px] border border-rose-200 hover:bg-rose-100" title="Hapus Sekolah"><i class="fa-solid fa-trash"></i></button>
+                                            <button onclick="State.selectedSchoolForAdmin='${s.npsn}';render();" class="px-3 py-1.5 bg-emerald-900 hover:bg-emerald-800 text-white font-black rounded-xl text-[11px] shadow-md transition-all flex items-center gap-1.5">
+                                                <i class="fa-solid fa-folder-open"></i>
+                                                <span>Detail Isian</span>
+                                            </button>
+                                            <button onclick="confirmDeleteSchool(${idx})" class="px-2.5 py-1.5 bg-rose-50 text-rose-700 font-bold rounded-xl text-[11px] border border-rose-200 hover:bg-rose-100" title="Hapus Sekolah & Akun"><i class="fa-solid fa-trash"></i></button>
                                         </td>
                                     </tr>
-                                `).join('')}
+                                `).join('') || '<tr><td colspan="8" class="text-center py-6 text-slate-400 font-medium">Tidak ada data sekolah sesuai filter.</td></tr>'}
                             </tbody>
                         </table>
                     </div>
@@ -612,8 +892,8 @@
         }
 
         function downloadExcelTemplate() {
-            const headers = "NPSN,Nama Sekolah,Kecamatan,Alamat,Kepala Sekolah,NIP Kepsek,Jumlah Siswa,Jumlah Guru\n";
-            const sample = "12345678,SDN 001 Sangatta Utara,Sangatta Utara,Jl. Diponegoro No.12,Drs. H. Ahmad Fauzi,196805121993031008,480,28\n";
+            const headers = "NPSN,Password,Nama Sekolah,Kecamatan,Alamat,Kepala Sekolah,NIP Kepsek,Jumlah Siswa,Jumlah Guru\n";
+            const sample = "12345678,password123,SDN 001 Sangatta Utara,Sangatta Utara,Jl. Diponegoro No.12,Drs. H. Ahmad Fauzi,196805121993031008,480,28\n";
             const blob = new Blob([headers + sample], { type: 'text/csv;charset=utf-8;' });
             const url = URL.createObjectURL(blob);
             const a = document.createElement('a');
@@ -626,9 +906,10 @@
         window.downloadExcelTemplate = downloadExcelTemplate;
 
         function exportAkunSekolah() {
-            let content = "NPSN,Nama Sekolah,Kecamatan,Password Login\n";
+            let content = "NPSN,Password Login,Nama Sekolah,Kecamatan\n";
             State.schools.forEach(s => {
-                content += `${s.npsn},"${s.nama}","${s.kecamatan || '-'}",${s.npsn}\n`;
+                const pass = s.password || s.npsn;
+                content += `${s.npsn},"${pass}","${s.nama}","${s.kecamatan || '-'}"\n`;
             });
             const blob = new Blob([content], { type: 'text/csv;charset=utf-8;' });
             const url = URL.createObjectURL(blob);
@@ -799,10 +1080,53 @@
             const lat = school.lat || '0.505295';
             const lng = school.lng || '117.514038';
 
+            // --- Kalkulasi Presisi Persentase Kelengkapan Instrumen ---
+            let filledCount = 0;
+            const totalModules = 7;
+            if (school.kecamatan && school.kepalaSekolah && school.alamat) filledCount++;
+            if (school.tanah && school.tanah.length > 0 && school.tanah[0].luasTotal > 0) filledCount++;
+            if (school.bangunan && school.bangunan.length > 0) filledCount++;
+            if (school.ruangan && school.ruangan.length > 0) filledCount++;
+            if (school.inventaris && school.inventaris.length > 0) filledCount++;
+            if (school.utilitas && school.utilitas.sumberListrik) filledCount++;
+            if (school.dokumen && school.dokumen.length > 0) filledCount++;
+
+            const pctKelengkapan = Math.round((filledCount / totalModules) * 100);
+
+            // --- Kalkulasi Presisi Kondisi Fisik Gedung & Ruangan ---
+            let totalBaik = 0;
+            let totalRusak = 0;
+            let totalItems = 0;
+
+            (school.bangunan || []).forEach(b => {
+                totalItems++;
+                if (b.kondisi === 'Baik') totalBaik++;
+                else totalRusak++;
+            });
+
+            (school.ruangan || []).forEach(r => {
+                totalItems++;
+                if (r.kondisi === 'Baik') totalBaik++;
+                else totalRusak++;
+            });
+
+            (school.inventaris || []).forEach(inv => {
+                const total = inv.jumlahTotal || 0;
+                const baik = inv.jumlahBaik || 0;
+                const rusak = inv.jumlahRusak || Math.max(0, total - baik);
+                totalItems += total;
+                totalBaik += baik;
+                totalRusak += rusak;
+            });
+
+            const pctBaik = totalItems > 0 ? Math.round((totalBaik / totalItems) * 100) : 0;
+            const pctRusak = totalItems > 0 ? (100 - pctBaik) : 0;
+
             return `
                 <div class="flex h-screen overflow-hidden bg-slate-950/5 font-sans">
                     <main class="flex-1 flex flex-col min-w-0 overflow-hidden bg-slate-50 p-6 overflow-y-auto">
-                        <div class="max-w-3xl mx-auto w-full bg-white rounded-2xl shadow-xl border border-slate-200 p-8 space-y-6 print-container">
+                        <div class="max-w-4xl mx-auto w-full bg-white rounded-2xl shadow-xl border border-slate-200 p-8 space-y-6 print-container">
+                            <!-- Kop Surat Resmi -->
                             <div class="border-b-4 border-double border-slate-900 pb-5 flex items-center justify-between">
                                 <div class="w-16 h-16 flex items-center justify-center shrink-0">
                                     <img src="https://i.ibb.co.com/wZd5Vn8h/Logo-Kabupaten-Kutai-Timur.png" alt="Logo Kutim" class="w-full h-full object-contain"/>
@@ -812,43 +1136,254 @@
                                     <h3 class="text-xs font-bold uppercase tracking-wider text-slate-700">DINAS PENDIDIKAN DAN KEBUDAYAAN</h3>
                                     <h2 class="text-lg font-black uppercase text-slate-900 mt-0.5">${school.nama}</h2>
                                     <p class="text-[11px] text-slate-600 mt-0.5">${school.alamat || 'Alamat Sekolah &bull; Kabupaten Kutai Timur'}</p>
-                                    <p class="text-[11px] font-mono text-slate-600">NPSN: ${school.npsn} &bull; Status: ${school.status}</p>
+                                    <p class="text-[11px] font-mono text-slate-600">NPSN: ${school.npsn} &bull; Status Verifikasi: ${school.status}</p>
                                 </div>
                                 <div class="w-16"></div>
                             </div>
 
                             <div class="flex justify-between items-center border-b pb-4 no-print">
                                 <div>
-                                    <span class="px-2.5 py-0.5 bg-blue-50 text-blue-800 font-mono text-[10px] font-black rounded-full">NPSN: ${school.npsn}</span>
+                                    <span class="px-2.5 py-0.5 bg-emerald-50 text-emerald-800 font-mono text-[10px] font-black rounded-full border border-emerald-100">NPSN: ${school.npsn}</span>
                                     <h2 class="text-2xl font-black text-slate-900 mt-1">${school.nama}</h2>
-                                    <p class="text-xs text-slate-500 font-medium">Kecamatan: ${school.kecamatan || '-'}</p>
+                                    <p class="text-xs text-slate-500 font-medium">Kecamatan: ${school.kecamatan || '-'} &bull; Kepala Sekolah: ${school.kepalaSekolah || '-'}</p>
                                 </div>
                                 <div class="flex items-center gap-2.5">
-                                    <button onclick="window.print()" class="px-4 py-2 bg-blue-900 text-white font-bold rounded-xl text-xs shadow-lg hover:bg-blue-800"><i class="fa-solid fa-print mr-1.5"></i> Cetak Profil</button>
-                                    <button onclick="State.selectedSchoolForAdmin=null;render();" class="px-4 py-2 bg-slate-100 font-bold rounded-xl text-slate-700 hover:bg-slate-200 text-xs">Kembali</button>
+                                    <button onclick="window.print()" class="px-4 py-2 bg-emerald-800 text-white font-bold rounded-xl text-xs shadow-lg hover:bg-emerald-700"><i class="fa-solid fa-print mr-1.5"></i> Cetak Profil</button>
+                                    <button onclick="State.selectedSchoolForAdmin=null;render();" class="px-4 py-2 bg-slate-100 font-bold rounded-xl text-slate-700 hover:bg-slate-200 text-xs"><i class="fa-solid fa-arrow-left mr-1"></i> Kembali ke Rekap</button>
                                 </div>
                             </div>
 
-                            <div class="grid grid-cols-2 md:grid-cols-4 gap-3 text-xs">
-                                <div class="bg-slate-50 p-3.5 rounded-xl border"><p class="text-[10px] font-bold text-slate-500 uppercase">Jumlah Siswa</p><p class="text-base font-black text-slate-900 mt-0.5">${school.jumlahSiswa || 0}</p></div>
-                                <div class="bg-slate-50 p-3.5 rounded-xl border"><p class="text-[10px] font-bold text-slate-500 uppercase">Jumlah Guru</p><p class="text-base font-black text-slate-900 mt-0.5">${school.jumlahGuru || 0}</p></div>
-                                <div class="bg-slate-50 p-3.5 rounded-xl border"><p class="text-[10px] font-bold text-slate-500 uppercase">Gedung / Bangunan</p><p class="text-base font-black text-slate-900 mt-0.5">${(school.bangunan || []).length} Unit</p></div>
-                                <div class="bg-slate-50 p-3.5 rounded-xl border"><p class="text-[10px] font-bold text-slate-500 uppercase">Inventaris Barang</p><p class="text-base font-black text-slate-900 mt-0.5">${(school.inventaris || []).length} Jenis</p></div>
+                            <!-- Panel Indikator Presisi & Prosentase -->
+                            <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                <!-- Kelengkapan Instrumen -->
+                                <div class="p-5 bg-gradient-to-br from-emerald-900 to-teal-900 text-white rounded-2xl shadow-md space-y-3">
+                                    <div class="flex justify-between items-center">
+                                        <span class="text-[11px] font-bold uppercase tracking-wider text-emerald-200">Kelengkapan Instrumen Data</span>
+                                        <span class="px-2.5 py-0.5 bg-white/20 text-white rounded-full text-[10px] font-mono font-bold">${filledCount}/${totalModules} Modul</span>
+                                    </div>
+                                    <div class="flex items-baseline gap-2">
+                                        <h3 class="text-3xl font-black">${pctKelengkapan}%</h3>
+                                        <span class="text-xs text-emerald-200 font-medium">terisi lengkap</span>
+                                    </div>
+                                    <div class="w-full bg-emerald-950/60 rounded-full h-2.5 overflow-hidden p-0.5 border border-white/10">
+                                        <div class="bg-gradient-to-r from-emerald-400 to-teal-300 h-full rounded-full transition-all duration-500" style="width: ${pctKelengkapan}%"></div>
+                                    </div>
+                                </div>
+
+                                <!-- Analisis Presisi Kondisi Sarpras -->
+                                <div class="p-5 bg-slate-900 text-white rounded-2xl shadow-md space-y-3">
+                                    <div class="flex justify-between items-center">
+                                        <span class="text-[11px] font-bold uppercase tracking-wider text-slate-300">Prosentase Kondisi Fisik Total</span>
+                                        <span class="px-2.5 py-0.5 bg-slate-800 text-slate-300 rounded-full text-[10px] font-mono font-bold">${totalItems} Item Input</span>
+                                    </div>
+                                    <div class="grid grid-cols-2 gap-2 text-xs">
+                                        <div class="p-2.5 bg-slate-800/80 rounded-xl border border-emerald-500/30">
+                                            <p class="text-[10px] font-bold text-emerald-400 uppercase">Kondisi Baik</p>
+                                            <p class="text-xl font-black text-white mt-0.5">${pctBaik}% <span class="text-[10px] font-normal text-slate-400">(${totalBaik})</span></p>
+                                        </div>
+                                        <div class="p-2.5 bg-slate-800/80 rounded-xl border border-rose-500/30">
+                                            <p class="text-[10px] font-bold text-rose-400 uppercase">Kerusakan</p>
+                                            <p class="text-xl font-black text-white mt-0.5">${pctRusak}% <span class="text-[10px] font-normal text-slate-400">(${totalRusak})</span></p>
+                                        </div>
+                                    </div>
+                                </div>
                             </div>
 
-                            <div class="space-y-2">
-                                <h4 class="text-xs font-black text-slate-700 uppercase tracking-wider">Titik Peta & Koordinat Lokasi</h4>
+                            <!-- Profil & Informasi Kepegawaian -->
+                            <div class="p-5 bg-slate-50 rounded-2xl border space-y-3 text-xs">
+                                <h4 class="text-xs font-black text-slate-800 uppercase tracking-wider border-b pb-2">1. Data Profil & Kepegawaian Sekolah</h4>
+                                <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                    <div><span class="text-[10px] font-bold text-slate-500 uppercase">Kepala Sekolah</span><p class="font-bold text-slate-900 text-sm mt-0.5">${school.kepalaSekolah || '-'}</p></div>
+                                    <div><span class="text-[10px] font-bold text-slate-500 uppercase">NIP Kepala Sekolah</span><p class="font-mono font-bold text-slate-900 text-sm mt-0.5">${school.nipKepsek || '-'}</p></div>
+                                </div>
+                                <div class="grid grid-cols-2 md:grid-cols-4 gap-3 pt-2">
+                                    <div class="bg-white p-3 rounded-xl border"><p class="text-[10px] font-bold text-slate-500 uppercase">Jumlah Siswa</p><p class="text-base font-black text-slate-900 mt-0.5">${school.jumlahSiswa || 0} Siswa</p></div>
+                                    <div class="bg-white p-3 rounded-xl border"><p class="text-[10px] font-bold text-slate-500 uppercase">Jumlah Guru</p><p class="text-base font-black text-slate-900 mt-0.5">${school.jumlahGuru || 0} Guru</p></div>
+                                    <div class="bg-white p-3 rounded-xl border"><p class="text-[10px] font-bold text-slate-500 uppercase">Gedung / Bangunan</p><p class="text-base font-black text-slate-900 mt-0.5">${(school.bangunan || []).length} Unit</p></div>
+                                    <div class="bg-white p-3 rounded-xl border"><p class="text-[10px] font-bold text-slate-500 uppercase">Inventaris Barang</p><p class="text-base font-black text-slate-900 mt-0.5">${(school.inventaris || []).length} Jenis</p></div>
+                                </div>
+                            </div>
+
+                            <!-- Rincian Status Lahan & Tanah -->
+                            <div class="p-5 bg-slate-50 rounded-2xl border space-y-3 text-xs">
+                                <h4 class="text-xs font-black text-slate-800 uppercase tracking-wider border-b pb-2">2. Status Lahan & Tanah Sekolah</h4>
+                                <div class="grid grid-cols-1 md:grid-cols-3 gap-3">
+                                    <div><span class="text-[10px] font-bold text-slate-500 uppercase">Status Hak Kepemilikan</span><p class="font-bold text-slate-900 text-sm mt-0.5">${school.tanah?.[0]?.statusKepemilikan || 'Belum Diisi'}</p></div>
+                                    <div><span class="text-[10px] font-bold text-slate-500 uppercase">Luas Lahan Total / Terbangun</span><p class="font-bold text-slate-900 text-sm mt-0.5">${school.tanah?.[0]?.luasTotal || 0} m² / ${school.tanah?.[0]?.luasTerbangun || 0} m²</p></div>
+                                    <div><span class="text-[10px] font-bold text-slate-500 uppercase">No. Sertifikat Tanah</span><p class="font-mono font-bold text-blue-900 text-sm mt-0.5">${school.tanah?.[0]?.noSertifikat || '-'}</p></div>
+                                </div>
+                            </div>
+
+                            <!-- Detail Rincian Gedung & Bangunan -->
+                            <div class="space-y-3 text-xs">
+                                <h4 class="text-xs font-black text-slate-800 uppercase tracking-wider border-b pb-2">3. Rincian Data Gedung & Bangunan Fisik</h4>
+                                <div class="overflow-x-auto">
+                                    <table class="w-full text-left text-xs border border-slate-200 rounded-xl overflow-hidden">
+                                        <thead class="bg-slate-100 font-bold text-slate-700 text-[10px] uppercase">
+                                            <tr>
+                                                <th class="p-3">Nama Gedung / Blok</th>
+                                                <th class="p-3">Kondisi Fisik</th>
+                                                <th class="p-3">Tahun Bangun</th>
+                                                <th class="p-3">Jumlah Lantai</th>
+                                                <th class="p-3">Luas Tapak</th>
+                                            </tr>
+                                        </thead>
+                                        <tbody class="divide-y divide-slate-100">
+                                            ${(school.bangunan || []).map(b => `
+                                                <tr class="hover:bg-slate-50">
+                                                    <td class="p-3 font-bold text-slate-900">${b.namaBangunan}</td>
+                                                    <td class="p-3"><span class="px-2.5 py-0.5 rounded-full text-[10px] font-bold ${b.kondisi==='Baik'?'bg-emerald-100 text-emerald-800':'bg-amber-100 text-amber-800'}">${b.kondisi}</span></td>
+                                                    <td class="p-3 text-slate-600 font-mono">${b.tahunBangun}</td>
+                                                    <td class="p-3 text-slate-600">${b.jumlahLantai} Lantai</td>
+                                                    <td class="p-3 text-slate-600 font-mono">${b.luasBangunan} m²</td>
+                                                </tr>
+                                            `).join('') || '<tr><td colspan="5" class="p-4 text-slate-400 italic text-center">Belum ada data gedung yang diinput.</td></tr>'}
+                                        </tbody>
+                                    </table>
+                                </div>
+                            </div>
+
+                            <!-- Detail Rincian Ruangan & Kelas -->
+                            <div class="space-y-3 text-xs">
+                                <h4 class="text-xs font-black text-slate-800 uppercase tracking-wider border-b pb-2">4. Rincian Data Ruangan & Kelas</h4>
+                                <div class="overflow-x-auto">
+                                    <table class="w-full text-left text-xs border border-slate-200 rounded-xl overflow-hidden">
+                                        <thead class="bg-slate-100 font-bold text-slate-700 text-[10px] uppercase">
+                                            <tr>
+                                                <th class="p-3">Kategori Ruang</th>
+                                                <th class="p-3">Kondisi Ruangan</th>
+                                                <th class="p-3">Luas Ruangan (m²)</th>
+                                            </tr>
+                                        </thead>
+                                        <tbody class="divide-y divide-slate-100">
+                                            ${(school.ruangan || []).map(r => `
+                                                <tr class="hover:bg-slate-50">
+                                                    <td class="p-3 font-bold text-slate-900">${r.kategoriRuang}</td>
+                                                    <td class="p-3"><span class="px-2.5 py-0.5 rounded-full text-[10px] font-bold ${r.kondisi==='Baik'?'bg-emerald-100 text-emerald-800':'bg-amber-100 text-amber-800'}">${r.kondisi}</span></td>
+                                                    <td class="p-3 text-slate-600 font-mono">${r.luas} m²</td>
+                                                </tr>
+                                            `).join('') || '<tr><td colspan="3" class="p-4 text-slate-400 italic text-center">Belum ada data ruangan yang diinput.</td></tr>'}
+                                        </tbody>
+                                    </table>
+                                </div>
+                            </div>
+
+                            <!-- Detail Rincian Inventaris Barang -->
+                            <div class="space-y-3 text-xs">
+                                <h4 class="text-xs font-black text-slate-800 uppercase tracking-wider border-b pb-2">5. Rincian Inventaris Barang & Prasarana</h4>
+                                <div class="overflow-x-auto">
+                                    <table class="w-full text-left text-xs border border-slate-200 rounded-xl overflow-hidden">
+                                        <thead class="bg-slate-100 font-bold text-slate-700 text-[10px] uppercase">
+                                            <tr>
+                                                <th class="p-3">Lokasi Gedung</th>
+                                                <th class="p-3">Nama Barang</th>
+                                                <th class="p-3">Jumlah Total</th>
+                                                <th class="p-3">Jumlah Baik</th>
+                                                <th class="p-3">Jumlah Rusak</th>
+                                            </tr>
+                                        </thead>
+                                        <tbody class="divide-y divide-slate-100">
+                                            ${(school.inventaris || []).map(i => `
+                                                <tr class="hover:bg-slate-50">
+                                                    <td class="p-3 font-bold text-blue-900"><span class="px-2 py-0.5 bg-blue-50 border border-blue-200 rounded text-[10px]">${i.namaGedung || 'Gedung Utama'}</span></td>
+                                                    <td class="p-3 font-bold text-slate-900">${i.namaBarang}</td>
+                                                    <td class="p-3 font-mono font-bold">${i.jumlahTotal}</td>
+                                                    <td class="p-3 font-mono font-bold text-emerald-700">${i.jumlahBaik}</td>
+                                                    <td class="p-3 font-mono font-bold text-rose-600">${i.jumlahRusak}</td>
+                                                </tr>
+                                            `).join('') || '<tr><td colspan="5" class="p-4 text-slate-400 italic text-center">Belum ada data inventaris yang diinput.</td></tr>'}
+                                        </tbody>
+                                    </table>
+                                </div>
+                            </div>
+
+                            <!-- Detail Utilitas & Internet -->
+                            <div class="p-5 bg-slate-50 rounded-2xl border space-y-3 text-xs">
+                                <h4 class="text-xs font-black text-slate-800 uppercase tracking-wider border-b pb-2">6. Utilitas & Akses Internet Sekolah</h4>
+                                <div class="grid grid-cols-1 md:grid-cols-3 gap-3">
+                                    <div><span class="text-[10px] font-bold text-slate-500 uppercase">Sumber Air Bersih</span><p class="font-bold text-slate-900 text-sm mt-0.5">${school.utilitas?.sumberAir || '-'}</p></div>
+                                    <div><span class="text-[10px] font-bold text-slate-500 uppercase">Sumber Listrik & Daya</span><p class="font-bold text-slate-900 text-sm mt-0.5">${school.utilitas?.sumberListrik || '-'} (${school.utilitas?.dayaListrik || 0} Watt)</p></div>
+                                    <div><span class="text-[10px] font-bold text-slate-500 uppercase">Akses Internet Utama</span><p class="mt-0.5"><span class="px-2.5 py-1 bg-blue-100 text-blue-800 font-bold rounded-lg text-xs">${school.utilitas?.internet || 'Fiber Optic'}</span></p></div>
+                                </div>
+                            </div>
+
+                            <!-- Detail Dokumen & Sertifikat Terunggah -->
+                            <div class="space-y-3 text-xs">
+                                <h4 class="text-xs font-black text-slate-800 uppercase tracking-wider border-b pb-2">7. Dokumen Scan & Sertifikat Terunggah</h4>
+                                <div class="space-y-2">
+                                    ${(school.dokumen || []).map(d => `
+                                        <div class="p-3 bg-slate-50 border border-slate-200 rounded-xl flex items-center justify-between">
+                                            <div class="flex items-center gap-3">
+                                                <div class="w-8 h-8 rounded-lg bg-blue-100 text-blue-800 flex items-center justify-center font-bold text-xs">
+                                                    <i class="fa-solid fa-file-pdf"></i>
+                                                </div>
+                                                <div>
+                                                    <p class="font-bold text-slate-900 text-xs">${d.namaFile}</p>
+                                                    <p class="text-[10px] text-slate-500">${d.kategori} &bull; ${d.ukuran} &bull; Unggah: ${d.waktuUnggah}</p>
+                                                </div>
+                                            </div>
+                                            <button onclick='openViewFile(${JSON.stringify(d.namaFile)}, ${JSON.stringify(d.url || "")}, ${JSON.stringify(d.kategori)})' class="px-3 py-1.5 bg-blue-900 text-white font-bold rounded-lg text-[11px] shadow hover:bg-blue-800 no-print"><i class="fa-solid fa-eye mr-1"></i> Cek Berkas</button>
+                                        </div>
+                                    `).join('') || '<p class="text-slate-400 italic">Belum ada dokumen scan yang diunggah.</p>'}
+                                </div>
+                            </div>
+
+                            <!-- Detail Daftar Usulan Sarpras -->
+                            <div class="space-y-3 text-xs">
+                                <h4 class="text-xs font-black text-slate-800 uppercase tracking-wider border-b pb-2">8. Daftar Usulan Bantuan Sarana & Prasarana</h4>
+                                <div class="overflow-x-auto">
+                                    <table class="w-full text-left text-xs border border-slate-200 rounded-xl overflow-hidden">
+                                        <thead class="bg-slate-100 font-bold text-slate-700 text-[10px] uppercase">
+                                            <tr>
+                                                <th class="p-3">Jenis Bantuan / Usulan</th>
+                                                <th class="p-3">Volume</th>
+                                                <th class="p-3">Prioritas</th>
+                                                <th class="p-3">Alasan Urgensi</th>
+                                            </tr>
+                                        </thead>
+                                        <tbody class="divide-y divide-slate-100">
+                                            ${(school.usulan || []).map(u => `
+                                                <tr class="hover:bg-slate-50">
+                                                    <td class="p-3 font-bold text-blue-950">${u.jenisBantuan}</td>
+                                                    <td class="p-3 font-medium">${u.volume}</td>
+                                                    <td class="p-3"><span class="px-2.5 py-0.5 rounded-full text-[10px] font-bold bg-rose-50 text-rose-700">${u.prioritas}</span></td>
+                                                    <td class="p-3 text-slate-600 italic font-medium">"${u.alasan}"</td>
+                                                </tr>
+                                            `).join('') || '<tr><td colspan="4" class="p-4 text-slate-400 italic text-center">Belum ada usulan sarpras diajukan.</td></tr>'}
+                                        </tbody>
+                                    </table>
+                                </div>
+                            </div>
+
+                            <!-- Peta & Titik Koordinat -->
+                            <div class="space-y-2 pt-2 no-print">
+                                <h4 class="text-xs font-black text-slate-700 uppercase tracking-wider">9. Titik Peta & Koordinat Lokasi GPS</h4>
                                 <div class="text-xs text-slate-600 font-mono mb-2">Latitude: ${lat}, Longitude: ${lng}</div>
                                 <div class="w-full h-48 rounded-xl overflow-hidden border border-slate-200 shadow-inner bg-slate-100">
                                     <iframe width="100%" height="100%" frameborder="0" scrolling="no" marginheight="0" marginwidth="0" src="https://maps.google.com/maps?q=${lat},${lng}&z=15&output=embed"></iframe>
                                 </div>
                             </div>
 
-                            <div class="bg-blue-50/70 p-6 rounded-2xl border border-blue-200 space-y-4 text-xs no-print">
-                                <h3 class="font-black text-blue-950 text-sm flex items-center gap-2"><i class="fa-solid fa-clipboard-check text-blue-700"></i> Panel Keputusan Verifikasi Super Admin</h3>
+                            <!-- Blok Tanda Tangan Kepala Sekolah (Dinamis Sesuai Sekolah yang Dipilih) -->
+                            <div class="flex justify-end pt-8 pb-4 print:pt-12">
+                                <div class="text-center w-64 space-y-16">
+                                    <div>
+                                        <p class="text-xs text-slate-700">${school.kecamatan || 'Sangatta'}, ${new Date().toLocaleDateString('id-ID', {day: 'numeric', month: 'long', year: 'numeric'})}</p>
+                                        <p class="text-xs font-bold text-slate-900 mt-0.5">Kepala ${school.nama},</p>
+                                    </div>
+                                    <div>
+                                        <p class="font-black text-slate-900 underline text-xs leading-tight">${school.kepalaSekolah || '(Nama Kepala Sekolah)'}</p>
+                                        <p class="text-[10px] font-mono text-slate-600 mt-1">NIP. ${school.nipKepsek || '...........................................'}</p>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <!-- Panel Verifikasi Super Admin -->
+                            <div class="bg-emerald-50/70 p-6 rounded-2xl border border-emerald-200 space-y-4 text-xs no-print">
+                                <h3 class="font-black text-emerald-950 text-sm flex items-center gap-2"><i class="fa-solid fa-clipboard-check text-emerald-700"></i> Panel Keputusan Verifikasi Super Admin</h3>
                                 <div>
                                     <label class="block text-[10px] font-bold uppercase text-slate-700 mb-1.5">Ubah Status Verifikasi</label>
-                                    <select id="verif-status" class="w-full px-3.5 py-2.5 border border-slate-300 rounded-xl bg-white font-bold text-slate-800 focus:ring-4 focus:ring-blue-600/10">
+                                    <select id="verif-status" class="w-full px-3.5 py-2.5 border border-slate-300 rounded-xl bg-white font-bold text-slate-800 focus:ring-4 focus:ring-emerald-600/10">
                                         <option value="Terverifikasi" ${school.status === 'Terverifikasi' ? 'selected' : ''}>Terverifikasi (Disetujui & Valid)</option>
                                         <option value="Perlu Perbaikan" ${school.status === 'Perlu Perbaikan' ? 'selected' : ''}>Perlu Perbaikan (Revisi Sekolah)</option>
                                         <option value="Dalam Verifikasi" ${school.status === 'Dalam Verifikasi' ? 'selected' : ''}>Dalam Proses Pemeriksaan</option>
@@ -856,10 +1391,10 @@
                                 </div>
                                 <div>
                                     <label class="block text-[10px] font-bold uppercase text-slate-700 mb-1.5">Catatan / Alasan Revisi untuk Sekolah</label>
-                                    <textarea id="verif-catatan" rows="3" class="w-full px-3.5 py-2.5 border border-slate-300 rounded-xl bg-white font-medium text-slate-800 focus:ring-4 focus:ring-blue-600/10" placeholder="Tuliskan catatan atau bagian yang harus diperbaiki oleh pihak sekolah...">${school.catatanAdmin || ''}</textarea>
+                                    <textarea id="verif-catatan" rows="3" class="w-full px-3.5 py-2.5 border border-slate-300 rounded-xl bg-white font-medium text-slate-800 focus:ring-4 focus:ring-emerald-600/10" placeholder="Tuliskan catatan atau bagian yang harus diperbaiki oleh pihak sekolah...">${school.catatanAdmin || ''}</textarea>
                                 </div>
                                 <div class="flex justify-end">
-                                    <button onclick="saveAdminVerification('${school.npsn}')" class="px-6 py-3 bg-blue-900 text-white font-black rounded-xl shadow-lg hover:bg-blue-800 transition-all text-xs">Simpan Keputusan Verifikasi</button>
+                                    <button onclick="saveAdminVerification('${school.npsn}')" class="px-6 py-3 bg-emerald-800 text-white font-black rounded-xl shadow-lg hover:bg-emerald-700 transition-all text-xs">Simpan Keputusan Verifikasi</button>
                                 </div>
                             </div>
                         </div>
@@ -870,15 +1405,84 @@
 
         function openAdminAddSchoolModal() {
             const m = document.getElementById('modal-admin-add-school');
-            if(m) m.classList.remove('hidden');
+            if(m) {
+                document.getElementById('admin-add-npsn').value = '';
+                document.getElementById('admin-add-password').value = '';
+                document.getElementById('admin-add-nama').value = '';
+                document.getElementById('admin-add-kec').value = '';
+                hideAdminAddSchoolError();
+                m.classList.remove('hidden');
+            }
         }
         window.openAdminAddSchoolModal = openAdminAddSchoolModal;
 
         function closeAdminAddSchoolModal() {
             const m = document.getElementById('modal-admin-add-school');
             if(m) m.classList.add('hidden');
+            hideAdminAddSchoolError();
         }
         window.closeAdminAddSchoolModal = closeAdminAddSchoolModal;
+
+        function showAdminAddSchoolError(msg) {
+            const errBox = document.getElementById('admin-add-school-error');
+            const errText = document.getElementById('admin-add-school-error-text');
+            if(errBox && errText) {
+                errText.textContent = msg;
+                errBox.classList.remove('hidden');
+            }
+        }
+
+        function hideAdminAddSchoolError() {
+            const errBox = document.getElementById('admin-add-school-error');
+            if(errBox) errBox.classList.add('hidden');
+        }
+        window.hideAdminAddSchoolError = hideAdminAddSchoolError;
+
+        function autoGeneratePassword() {
+            const npsn = document.getElementById('admin-add-npsn').value.trim();
+            if(npsn) {
+                document.getElementById('admin-add-password').value = "sd" + npsn;
+            } else {
+                const chars = "abcdefghijklmnopqrstuvwxyz0123456789";
+                let pass = "";
+                for(let i=0; i<8; i++) pass += chars.charAt(Math.floor(Math.random() * chars.length));
+                document.getElementById('admin-add-password').value = pass;
+            }
+        }
+        window.autoGeneratePassword = autoGeneratePassword;
+
+        function openEditPasswordModal(idx) {
+            State.passwordEditIndex = idx;
+            const school = State.schools[idx];
+            if(!school) return;
+            document.getElementById('edit-pass-school-name').textContent = school.nama;
+            document.getElementById('edit-pass-npsn').textContent = "NPSN: " + school.npsn;
+            document.getElementById('edit-pass-input').value = school.password || school.npsn;
+            document.getElementById('modal-edit-password').classList.remove('hidden');
+        }
+        window.openEditPasswordModal = openEditPasswordModal;
+
+        function closeEditPasswordModal() {
+            document.getElementById('modal-edit-password').classList.add('hidden');
+            State.passwordEditIndex = null;
+        }
+        window.closeEditPasswordModal = closeEditPasswordModal;
+
+        function handleSavePasswordEdit(e) {
+            e.preventDefault();
+            if(State.passwordEditIndex === null) return;
+            const newPass = document.getElementById('edit-pass-input').value.trim();
+            if(!newPass) {
+                showToast("Kata sandi tidak boleh kosong.", "error");
+                return;
+            }
+            State.schools[State.passwordEditIndex].password = newPass;
+            syncDataToServer(State.schools[State.passwordEditIndex]);
+            showToast("Kata sandi sekolah berhasil diperbarui.", "success");
+            closeEditPasswordModal();
+            render();
+        }
+        window.handleSavePasswordEdit = handleSavePasswordEdit;
 
         function confirmDeleteSchool(idx) {
             State.deleteTargetType = 'school';
@@ -899,7 +1503,7 @@
         function executeDeleteSchool() {
             if (State.deleteTargetType === 'school' && State.deleteTargetIndex !== null) {
                 State.schools.splice(State.deleteTargetIndex, 1);
-                showToast("Data berhasil dihapus.", "success");
+                showToast("Data dan akun sekolah berhasil dihapus.", "success");
             }
             closeDeleteModal();
             render();
@@ -918,21 +1522,26 @@
 
         function handleAdminAddSchool(e) {
             e.preventDefault();
+            hideAdminAddSchoolError();
             const npsn = document.getElementById('admin-add-npsn').value.trim();
+            const pass = document.getElementById('admin-add-password').value.trim();
             const nama = document.getElementById('admin-add-nama').value.trim();
             const kecamatan = document.getElementById('admin-add-kec').value.trim();
 
             if(npsn.length < 7 || npsn.length > 8) {
-                showToast("NPSN harus 7 atau 8 digit.", "error");
+                showAdminAddSchoolError("NPSN harus terdiri dari 7 atau 8 digit angka.");
+                showToast("NPSN harus 7 atau 8 digit angka.", "error");
                 return;
             }
             if(State.schools.find(s => s.npsn === npsn)) {
-                showToast("NPSN sudah terdaftar dalam sistem.", "error");
+                showAdminAddSchoolError("NPSN (" + npsn + ") sudah terdaftar! Gunakan NPSN lain.");
+                showToast("NPSN " + npsn + " sudah terdaftar dalam sistem.", "error");
                 return;
             }
 
-            State.schools.push({
+            const newSchoolObj = {
                 npsn: npsn,
+                password: pass || npsn,
                 nama: nama,
                 status: 'Draf',
                 kecamatan: kecamatan,
@@ -945,9 +1554,12 @@
                 lng: '117.514038',
                 tanah: [], bangunan: [], ruangan: [], inventaris: [], dokumen: [], usulan: [],
                 utilitas: { sumberAir: 'PDAM', sumberListrik: 'PLN', dayaListrik: 2200, internet: 'Fiber Optic (Indihome/dll)' }
-            });
+            };
 
-            showToast("Sekolah baru berhasil ditambahkan.", "success");
+            State.schools.push(newSchoolObj);
+            syncDataToServer(newSchoolObj);
+
+            showToast("Akun user & sekolah baru (" + npsn + ") berhasil di-generate!", "success");
             closeAdminAddSchoolModal();
             render();
         }
@@ -958,6 +1570,7 @@
             if (school) {
                 school.status = document.getElementById('verif-status').value;
                 school.catatanAdmin = document.getElementById('verif-catatan').value;
+                syncDataToServer(school);
                 showToast("Keputusan verifikasi berhasil disimpan.", "success");
                 State.selectedSchoolForAdmin = null;
                 render();
@@ -970,6 +1583,7 @@
         function renderSchoolDashboard() {
             const school = State.schools.find(s => s.npsn === State.npsn) || { 
                 npsn: State.npsn, 
+                password: State.npsn,
                 nama: 'Sekolah Dasar Negeri ' + State.npsn, 
                 status: 'Draf', 
                 kecamatan: 'Sangatta Utara',
@@ -985,27 +1599,27 @@
 
             return `
                 <div class="flex h-screen overflow-hidden bg-slate-950/5 font-sans">
-                    <aside class="w-64 bg-gradient-to-b from-slate-950 via-blue-950 to-slate-950 text-white flex flex-col shrink-0 shadow-xl border-r border-slate-800">
+                    <aside class="w-64 bg-gradient-to-b from-slate-950 via-emerald-950 to-slate-950 text-white flex flex-col shrink-0 shadow-xl border-r border-slate-800">
                         <div class="h-20 flex items-center px-5 border-b border-slate-800 bg-slate-950/60 backdrop-blur-xl">
                             <div class="bg-white p-1.5 rounded-xl shadow-lg w-10 h-10 flex items-center justify-center shrink-0">
                                 <img src="https://i.ibb.co.com/wZd5Vn8h/Logo-Kabupaten-Kutai-Timur.png" alt="Logo" class="w-full h-full object-contain"/>
                             </div>
                             <div class="ml-3">
                                 <h2 class="font-black text-sm text-white">SIPRASA</h2>
-                                <p class="text-blue-400 text-[9px] uppercase tracking-widest font-extrabold">Panel Sekolah</p>
+                                <p class="text-emerald-400 text-[9px] uppercase tracking-widest font-extrabold">Panel Sekolah</p>
                             </div>
                         </div>
                         <nav class="flex-1 p-3.5 space-y-1 overflow-y-auto text-xs font-medium">
-                            <button onclick="State.activeMenu='beranda';render();" class="w-full flex items-center gap-3 px-3.5 py-3 rounded-xl ${State.activeMenu==='beranda'?'bg-blue-600 text-white font-bold shadow-lg':'text-slate-400 hover:text-white'}"><i class="fa-solid fa-house w-4"></i> Beranda & Status</button>
-                            <button onclick="State.activeMenu='profil';render();" class="w-full flex items-center gap-3 px-3.5 py-3 rounded-xl ${State.activeMenu==='profil'?'bg-blue-600 text-white font-bold shadow-lg':'text-slate-400 hover:text-white'}"><i class="fa-solid fa-school w-4"></i> Profil Sekolah</button>
-                            <button onclick="State.activeMenu='tanah';render();" class="w-full flex items-center gap-3 px-3.5 py-3 rounded-xl ${State.activeMenu==='tanah'?'bg-blue-600 text-white font-bold shadow-lg':'text-slate-400 hover:text-white'}"><i class="fa-solid fa-map w-4"></i> Tanah & Lahan</button>
-                            <button onclick="State.activeMenu='bangunan';render();" class="w-full flex items-center gap-3 px-3.5 py-3 rounded-xl ${State.activeMenu==='bangunan'?'bg-blue-600 text-white font-bold shadow-lg':'text-slate-400 hover:text-white'}"><i class="fa-solid fa-building w-4"></i> Gedung</button>
-                            <button onclick="State.activeMenu='ruangan';render();" class="w-full flex items-center gap-3 px-3.5 py-3 rounded-xl ${State.activeMenu==='ruangan'?'bg-blue-600 text-white font-bold shadow-lg':'text-slate-400 hover:text-white'}"><i class="fa-solid fa-door-open w-4"></i> Ruangan</button>
-                            <button onclick="State.activeMenu='inventaris';render();" class="w-full flex items-center gap-3 px-3.5 py-3 rounded-xl ${State.activeMenu==='inventaris'?'bg-blue-600 text-white font-bold shadow-lg':'text-slate-400 hover:text-white'}"><i class="fa-solid fa-boxes-stacked w-4"></i> Inventaris</button>
-                            <button onclick="State.activeMenu='utilitas';render();" class="w-full flex items-center gap-3 px-3.5 py-3 rounded-xl ${State.activeMenu==='utilitas'?'bg-blue-600 text-white font-bold shadow-lg':'text-slate-400 hover:text-white'}"><i class="fa-solid fa-bolt w-4"></i> Utilitas</button>
-                            <button onclick="State.activeMenu='dokumen';render();" class="w-full flex items-center gap-3 px-3.5 py-3 rounded-xl ${State.activeMenu==='dokumen'?'bg-blue-600 text-white font-bold shadow-lg':'text-slate-400 hover:text-white'}"><i class="fa-solid fa-file-arrow-up w-4"></i> Dokumen</button>
-                            <button onclick="State.activeMenu='usulan';render();" class="w-full flex items-center gap-3 px-3.5 py-3 rounded-xl ${State.activeMenu==='usulan'?'bg-indigo-600 text-white font-bold shadow-lg':'text-indigo-400 hover:text-white'}"><i class="fa-solid fa-file-pen w-4"></i> Usulan Sarpras</button>
-                            <button onclick="State.activeMenu='kirim-data';render();" class="w-full flex items-center gap-3 px-3.5 py-3 rounded-xl ${State.activeMenu==='kirim-data'?'bg-emerald-600 text-white font-bold shadow-lg':'text-emerald-400 hover:text-white'}"><i class="fa-solid fa-paper-plane w-4"></i> Kirim Data</button>
+                            <button onclick="State.activeMenu='beranda';render();" class="w-full flex items-center gap-3 px-3.5 py-3 rounded-xl ${State.activeMenu==='beranda'?'bg-emerald-600 text-white font-bold shadow-lg':'text-slate-400 hover:text-white'}"><i class="fa-solid fa-house w-4"></i> Beranda & Status</button>
+                            <button onclick="State.activeMenu='profil';render();" class="w-full flex items-center gap-3 px-3.5 py-3 rounded-xl ${State.activeMenu==='profil'?'bg-emerald-600 text-white font-bold shadow-lg':'text-slate-400 hover:text-white'}"><i class="fa-solid fa-school w-4"></i> Profil Sekolah</button>
+                            <button onclick="State.activeMenu='tanah';render();" class="w-full flex items-center gap-3 px-3.5 py-3 rounded-xl ${State.activeMenu==='tanah'?'bg-emerald-600 text-white font-bold shadow-lg':'text-slate-400 hover:text-white'}"><i class="fa-solid fa-map w-4"></i> Tanah & Lahan</button>
+                            <button onclick="State.activeMenu='bangunan';render();" class="w-full flex items-center gap-3 px-3.5 py-3 rounded-xl ${State.activeMenu==='bangunan'?'bg-emerald-600 text-white font-bold shadow-lg':'text-slate-400 hover:text-white'}"><i class="fa-solid fa-building w-4"></i> Gedung</button>
+                            <button onclick="State.activeMenu='ruangan';render();" class="w-full flex items-center gap-3 px-3.5 py-3 rounded-xl ${State.activeMenu==='ruangan'?'bg-emerald-600 text-white font-bold shadow-lg':'text-slate-400 hover:text-white'}"><i class="fa-solid fa-door-open w-4"></i> Ruangan</button>
+                            <button onclick="State.activeMenu='inventaris';render();" class="w-full flex items-center gap-3 px-3.5 py-3 rounded-xl ${State.activeMenu==='inventaris'?'bg-emerald-600 text-white font-bold shadow-lg':'text-slate-400 hover:text-white'}"><i class="fa-solid fa-boxes-stacked w-4"></i> Inventaris</button>
+                            <button onclick="State.activeMenu='utilitas';render();" class="w-full flex items-center gap-3 px-3.5 py-3 rounded-xl ${State.activeMenu==='utilitas'?'bg-emerald-600 text-white font-bold shadow-lg':'text-slate-400 hover:text-white'}"><i class="fa-solid fa-bolt w-4"></i> Utilitas</button>
+                            <button onclick="State.activeMenu='dokumen';render();" class="w-full flex items-center gap-3 px-3.5 py-3 rounded-xl ${State.activeMenu==='dokumen'?'bg-emerald-600 text-white font-bold shadow-lg':'text-slate-400 hover:text-white'}"><i class="fa-solid fa-file-arrow-up w-4"></i> Dokumen</button>
+                            <button onclick="State.activeMenu='usulan';render();" class="w-full flex items-center gap-3 px-3.5 py-3 rounded-xl ${State.activeMenu==='usulan'?'bg-teal-600 text-white font-bold shadow-lg':'text-teal-400 hover:text-white'}"><i class="fa-solid fa-file-pen w-4"></i> Usulan Sarpras</button>
+                            <button onclick="State.activeMenu='kirim-data';render();" class="w-full flex items-center gap-3 px-3.5 py-3 rounded-xl ${State.activeMenu==='kirim-data'?'bg-emerald-700 text-white font-bold shadow-lg':'text-emerald-400 hover:text-white'}"><i class="fa-solid fa-paper-plane w-4"></i> Kirim Data</button>
                         </nav>
                         <div class="p-3.5 border-t border-slate-800">
                             <button onclick="State.role=null;render();" class="flex items-center gap-3 px-3.5 py-2.5 w-full rounded-xl text-rose-400 hover:bg-rose-500/10 font-bold text-xs"><i class="fa-solid fa-right-from-bracket w-4"></i> Keluar</button>
@@ -1015,10 +1629,10 @@
                         <header class="h-20 bg-white border-b border-slate-200 px-8 flex items-center justify-between shrink-0 shadow-sm no-print">
                             <div>
                                 <h1 class="text-xl font-black text-slate-900 tracking-tight">${school.nama}</h1>
-                                <p class="text-xs text-blue-700 font-bold mt-0.5">NPSN: ${State.npsn} &bull; Kecamatan: ${school.kecamatan || '-'}</p>
+                                <p class="text-xs text-emerald-800 font-bold mt-0.5">NPSN: ${State.npsn} &bull; Kecamatan: ${school.kecamatan || '-'}</p>
                             </div>
                             <div class="flex items-center gap-3">
-                                <span class="px-3 py-1 text-[11px] font-black uppercase rounded-full border ${school.status==='Terverifikasi'?'bg-emerald-50 text-emerald-700 border-emerald-200':school.status==='Perlu Perbaikan'?'bg-rose-50 text-rose-700 border-rose-200':'bg-blue-50 text-blue-700 border-blue-200'}">${school.status}</span>
+                                <span class="px-3 py-1 text-[11px] font-black uppercase rounded-full border ${school.status==='Terverifikasi'?'bg-emerald-50 text-emerald-700 border-emerald-200':school.status==='Perlu Perbaikan'?'bg-rose-50 text-rose-700 border-rose-200':'bg-teal-50 text-teal-700 border-teal-200'}">${school.status}</span>
                             </div>
                         </header>
                         <div class="flex-1 overflow-auto p-6 space-y-6">
@@ -1052,7 +1666,6 @@
             if (school.dokumen && school.dokumen.length > 0) filledCount++;
             
             const pctFilled = Math.round((filledCount / totalSections) * 100);
-            const pctRemaining = 100 - pctFilled;
 
             return `
                 <div class="max-w-3xl mx-auto space-y-6">
@@ -1314,6 +1927,7 @@
                 school.lat = document.getElementById('sch-lat').value;
                 school.lng = document.getElementById('sch-lng').value;
                 isProfileEditMode = false;
+                syncDataToServer(school);
                 showToast("Profil sekolah berhasil disimpan.", "success");
                 render();
             }
@@ -1363,6 +1977,7 @@
                     luasTerbangun: parseFloat(document.getElementById('tanah-terbangun').value) || 0,
                     noSertifikat: document.getElementById('tanah-sertifikat').value
                 }];
+                syncDataToServer(school);
                 showToast("Data tanah berhasil disimpan.", "success");
             }
         }
@@ -1526,6 +2141,7 @@
                 if(school) {
                     school.sitePlanUrl = evt.target.result;
                     school.sitePlanName = file.name;
+                    syncDataToServer(school);
                     showToast("Site Plan berhasil diunggah.", "success");
                     render();
                 }
@@ -1543,6 +2159,7 @@
                 if(school) {
                     school.kondisiAsliUrl = evt.target.result;
                     school.kondisiAsliName = file.name;
+                    syncDataToServer(school);
                     showToast("Foto kondisi asli berhasil diunggah.", "success");
                     render();
                 }
@@ -1765,6 +2382,20 @@
             `;
         }
 
+        function saveSchoolUtilitas(npsn) {
+            const school = State.schools.find(s => s.npsn === npsn);
+            if(school) {
+                school.utilitas = {
+                    sumberAir: document.getElementById('util-air').value,
+                    sumberListrik: document.getElementById('util-listrik').value,
+                    dayaListrik: parseInt(document.getElementById('util-daya').value) || 2200,
+                    internet: document.getElementById('util-internet').value
+                };
+                syncDataToServer(school);
+                showToast("Data utilitas berhasil disimpan.", "success");
+            }
+        }
+
         function renderSchoolDokumen(school) {
             return `
                 <div class="bg-white p-8 rounded-2xl shadow-xl border border-slate-200 max-w-3xl mx-auto space-y-5 text-xs">
@@ -1862,6 +2493,7 @@
                         url: evt.target.result,
                         isEditing: false
                     });
+                    syncDataToServer(school);
                     showToast("Dokumen berhasil diunggah.", "success");
                     render();
                 }
@@ -1887,6 +2519,7 @@
                 if(newName) school.dokumen[idx].namaFile = newName;
                 school.dokumen[idx].kategori = newKat;
                 school.dokumen[idx].isEditing = false;
+                syncDataToServer(school);
                 showToast("Perubahan dokumen berhasil disimpan.", "success");
                 render();
             }
@@ -1897,6 +2530,7 @@
             const school = State.schools.find(s => s.npsn === npsn);
             if(school && school.dokumen) {
                 school.dokumen.splice(idx, 1);
+                syncDataToServer(school);
                 showToast("Dokumen berhasil dihapus.", "success");
                 render();
             }
@@ -2065,6 +2699,7 @@
             const school = State.schools.find(s => s.npsn === npsn);
             if(school && school.usulan) {
                 school.usulan.splice(idx, 1);
+                syncDataToServer(school);
                 showToast("Usulan berhasil dihapus.", "success");
                 render();
             }
@@ -2108,6 +2743,7 @@
                     alasan: document.getElementById('usul-alasan').value,
                     tanggalUsul: new Date().toISOString().split('T')[0]
                 });
+                syncDataToServer(school);
                 showToast("Usulan sarpras berhasil ditambahkan.", "success");
                 render();
             }
@@ -2117,6 +2753,7 @@
             const school = State.schools.find(s => s.npsn === npsn);
             if(school) {
                 school.status = 'Terverifikasi';
+                syncDataToServer(school);
                 showToast("Data berhasil dikirim ke Admin Dinas.", "success");
                 render();
             }
@@ -2162,6 +2799,7 @@
                     school.bangunan.push(data);
                     showToast("Data gedung ditambahkan.", "success");
                 }
+                syncDataToServer(school);
                 closeBangunanModal();
                 render();
             }
@@ -2189,6 +2827,7 @@
             const school = State.schools.find(s => s.npsn === npsn);
             if(school && school.bangunan) {
                 school.bangunan.splice(idx, 1);
+                syncDataToServer(school);
                 showToast("Data gedung dihapus.", "success");
                 render();
             }
@@ -2231,6 +2870,7 @@
                     school.ruangan.push(data);
                     showToast("Data ruangan ditambahkan.", "success");
                 }
+                syncDataToServer(school);
                 closeRuanganModal();
                 render();
             }
@@ -2256,6 +2896,7 @@
             const school = State.schools.find(s => s.npsn === npsn);
             if(school && school.ruangan) {
                 school.ruangan.splice(idx, 1);
+                syncDataToServer(school);
                 showToast("Data ruangan dihapus.", "success");
                 render();
             }
@@ -2314,6 +2955,7 @@
                     school.inventaris.push(data);
                     showToast("Inventaris ditambahkan.", "success");
                 }
+                syncDataToServer(school);
                 closeInventarisModal();
                 render();
             }
@@ -2339,15 +2981,32 @@
             const school = State.schools.find(s => s.npsn === npsn);
             if(school && school.inventaris) {
                 school.inventaris.splice(idx, 1);
+                syncDataToServer(school);
                 showToast("Inventaris dihapus.", "success");
                 render();
             }
         }
         window.deleteInventaris = deleteInventaris;
 
+        // Fetch data awal dari server jika tersedia
+        async function fetchInitialData() {
+            if (!SCRIPT_URL || SCRIPT_URL.includes("MASUKKAN")) return;
+            try {
+                const res = await fetch(SCRIPT_URL);
+                const data = await res.json();
+                if (data && data.status === "success" && Array.isArray(data.schools) && data.schools.length > 0) {
+                    State.schools = data.schools;
+                    render();
+                }
+            } catch (err) {
+                console.warn("Menggunakan data lokal awal.");
+            }
+        }
+
         // Initialize App on Load
         window.onload = () => {
             render();
+            fetchInitialData();
         };
     </script>
 </body>
