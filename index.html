@@ -1,0 +1,2354 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Sistem Informasi Sarana dan Prasarana Sekolah Dasar - Kutai Timur</title>
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- Google Fonts Inter -->
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&display=swap" rel="stylesheet">
+    <!-- FontAwesome Icons -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <style>
+        body { font-family: 'Inter', sans-serif; }
+        @keyframes fadeIn { from { opacity: 0; transform: translateY(6px); } to { opacity: 1; transform: translateY(0); } }
+        .animate-fade-in { animation: fadeIn 0.3s cubic-bezier(0.16, 1, 0.3, 1) forwards; }
+        ::-webkit-scrollbar { width: 6px; height: 6px; }
+        ::-webkit-scrollbar-track { background: #f1f5f9; }
+        ::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 9999px; }
+        ::-webkit-scrollbar-thumb:hover { background: #94a3b8; }
+        @media print {
+            body { background: white !important; color: black !important; height: auto !important; overflow: visible !important; }
+            aside, header, button, .no-print { display: none !important; }
+            main { padding: 0 !important; background: white !important; overflow: visible !important; height: auto !important; display: block !important; }
+            .print-container { box-shadow: none !important; border: none !important; padding: 0 !important; margin: 0 !important; width: 100% !important; max-width: 100% !important; overflow: visible !important; height: auto !important; page-break-inside: avoid; }
+            * { -webkit-print-color-adjust: exact !important; print-color-adjust: exact !important; }
+        }
+    </style>
+</head>
+<body class="bg-slate-950/5 text-slate-900 selection:bg-blue-600 selection:text-white">
+
+    <!-- Toast Notification Container -->
+    <div id="toast-container" class="fixed top-6 left-1/2 -translate-x-1/2 z-50 pointer-events-none flex flex-col items-center gap-2"></div>
+
+    <!-- Root Application Container -->
+    <div id="app" class="min-h-screen flex flex-col">
+        <!-- Initial Loader -->
+        <div class="min-h-screen bg-slate-950 flex items-center justify-center">
+            <div class="flex flex-col items-center gap-5">
+                <div class="relative w-16 h-16">
+                    <div class="absolute inset-0 rounded-full border-4 border-blue-500/20 animate-pulse"></div>
+                    <div class="absolute inset-0 rounded-full border-4 border-blue-600 border-t-transparent animate-spin"></div>
+                </div>
+                <p class="text-slate-300 font-semibold tracking-wider text-sm">MEMUAT SISTEM SIPRASA KUTIM...</p>
+            </div>
+        </div>
+    </div>
+
+    <!-- Application JavaScript -->
+    <script>
+        // --- Hubungkan URL Web App Google Apps Script di sini ---
+        const SCRIPT_URL = "https://script.google.com/macros/s/AKfycbzNp0uRRonx-QYSqQ_Ov7JHcaxVvyQxlEKp6cCW3U0yUbXePtc24xAzOqzkEa0GgKVa/exec";
+
+        // --- Fungsi Sinkronisasi Data Otomatis ke Backend Apps Script & Spreadsheet ---
+        async function syncDataToServer(schoolData) {
+            if (!SCRIPT_URL || SCRIPT_URL.includes("MASUKKAN")) return;
+            try {
+                await fetch(SCRIPT_URL, {
+                    method: "POST",
+                    mode: "no-cors",
+                    headers: { "Content-Type": "application/json" },
+                    body: JSON.stringify(schoolData)
+                });
+            } catch (err) {
+                console.error("Gagal sinkronisasi ke server:", err);
+            }
+        }
+
+        // --- State Management ---
+        const State = {
+            role: null, // 'admin' | 'school' | null
+            npsn: '',
+            activeMenu: 'dashboard',
+            schools: [
+                { 
+                    npsn: '12345678', 
+                    nama: 'SDN 001 Sangatta Utara', 
+                    status: 'Draf', 
+                    kecamatan: 'Sangatta Utara', 
+                    alamat: 'Jl. Diponegoro No. 12, Sangatta Utara',
+                    kepalaSekolah: 'Drs. H. Ahmad Fauzi, M.Pd',
+                    nipKepsek: '19680512 199303 1 008',
+                    jumlahSiswa: 480,
+                    jumlahGuru: 28,
+                    lat: '0.493984',
+                    lng: '117.546265',
+                    catatanAdmin: '', 
+                    tanah: [{id:'1', statusKepemilikan:'Milik Pemerintah', luasTotal:5000, luasTerbangun:1500, noSertifikat:'CERT-001-KUTIM'}], 
+                    bangunan: [
+                        {id:'1', namaBangunan:'Gedung Utama (A)', kondisi:'Baik', tahunBangun:2015, jumlahLantai:2, luasBangunan:1200},
+                        {id:'2', namaBangunan:'Gedung Kelas B', kondisi:'Rusak Ringan', tahunBangun:2010, jumlahLantai:1, luasBangunan:600}
+                    ], 
+                    ruangan: [
+                        {id:'1', kategoriRuang:'Ruang Kelas', kondisi:'Baik', luas:64},
+                        {id:'2', kategoriRuang:'Perpustakaan', kondisi:'Baik', luas:96}
+                    ], 
+                    inventaris: [
+                        {id:'1', namaGedung:'Gedung Utama (A)', namaBarang:'Meja Siswa', jumlahTotal:200, jumlahBaik:180, jumlahRusak:20},
+                        {id:'2', namaGedung:'Gedung Utama (A)', namaBarang:'Kursi Siswa', jumlahTotal:400, jumlahBaik:360, jumlahRusak:40}
+                    ], 
+                    dokumen: [{id:'1', namaFile:'Sertifikat_Tanah_001.pdf', kategori:'Sertifikat Tanah', ukuran:'2.4 MB', waktuUnggah:'2026-02-10', url: ''}], 
+                    usulan: [
+                        {id:'1', jenisBantuan:'Rehab Berat Ruang Kelas', volume:'3 Ruangan', prioritas:'Sangat Tinggi', alasan:'Atap bocor parah dan kayu plafon lapuk termakan usia.', tanggalUsul:'2026-02-15'}
+                    ],
+                    utilitas: { sumberAir:'PDAM', sumberListrik:'PLN', dayaListrik:5500, internet:'Fiber Optic (Indihome/dll)' } 
+                },
+                { 
+                    npsn: '87654321', 
+                    nama: 'SDN 002 Bengalon', 
+                    status: 'Terverifikasi', 
+                    kecamatan: 'Bengalon', 
+                    alamat: 'Jl. Poros Bengalon KM 3',
+                    kepalaSekolah: 'Siti Aminah, S.Pd',
+                    nipKepsek: '19750320 200003 2 004',
+                    jumlahSiswa: 320,
+                    jumlahGuru: 20,
+                    lat: '0.8521',
+                    lng: '117.8214',
+                    catatanAdmin: 'Data sudah valid dan sesuai standar.', 
+                    tanah: [{id:'1', statusKepemilikan:'Milik Pemerintah', luasTotal:4000, luasTerbangun:1000, noSertifikat:'CERT-002-KUTIM'}], 
+                    bangunan: [{id:'1', namaBangunan:'Gedung A', kondisi:'Baik', tahunBangun:2018, jumlahLantai:1, luasBangunan:800}], 
+                    ruangan: [{id:'1', kategoriRuang:'Ruang Kelas', kondisi:'Baik', luas:60}], 
+                    inventaris: [{id:'1', namaGedung:'Gedung A', namaBarang:'Komputer Lab', jumlahTotal:20, jumlahBaik:19, jumlahRusak:1}], 
+                    dokumen: [{id:'1', namaFile:'IMB_SDN002.pdf', kategori:'IMB', ukuran:'1.8 MB', waktuUnggah:'2026-01-15', url: ''}], 
+                    usulan: [],
+                    utilitas: { sumberAir:'Sumur Bor', sumberListrik:'PLN', dayaListrik:3300, internet:'Starlink' } 
+                },
+                { 
+                    npsn: '11223344', 
+                    nama: 'SDN 005 Sangkulirang', 
+                    status: 'Perlu Perbaikan', 
+                    kecamatan: 'Sangkulirang', 
+                    alamat: 'Jl. Pelabuhan Lama No. 5',
+                    kepalaSekolah: 'M. Yusuf, S.Pd.SD',
+                    nipKepsek: '19820110 200801 1 005',
+                    jumlahSiswa: 210,
+                    jumlahGuru: 15,
+                    lat: '1.1245',
+                    lng: '118.0123',
+                    catatanAdmin: 'Mohon perbarui dokumen sertifikat tanah.', 
+                    tanah: [], bangunan: [], ruangan: [], inventaris: [], dokumen: [], usulan: [],
+                    utilitas: { sumberAir:'Sungai / Lainnya', sumberListrik:'PLN', dayaListrik:2200, internet:'Jaringan Seluler' } 
+                }
+            ],
+            selectedSchoolForAdmin: null,
+            selectedUsulanForAdmin: null,
+            toast: null,
+            deleteTargetType: null,
+            deleteTargetIndex: null
+        };
+
+        function showToast(msg, type = 'success') {
+            const container = document.getElementById('toast-container');
+            if(!container) return;
+            const el = document.createElement('div');
+            el.className = `px-5 py-3 rounded-xl shadow-xl backdrop-blur-xl text-white font-bold flex items-center gap-3 border border-white/10 text-xs animate-fade-in ${type === 'success' ? 'bg-slate-900/90' : 'bg-rose-600/90'}`;
+            el.innerHTML = `<i class="fa-solid ${type === 'success' ? 'fa-circle-check text-emerald-400' : 'fa-circle-exclamation'}"></i> ${msg}`;
+            container.appendChild(el);
+            setTimeout(() => { el.remove(); }, 4000);
+        }
+
+        // --- Render Engine ---
+        function render() {
+            const app = document.getElementById('app');
+            if (!State.role) {
+                app.innerHTML = renderLoginScreen();
+                attachLoginEvents();
+            } else if (State.role === 'admin') {
+                app.innerHTML = renderAdminDashboard();
+            } else if (State.role === 'school') {
+                app.innerHTML = renderSchoolDashboard();
+            }
+        }
+
+        // --- Login Screen ---
+        function renderLoginScreen() {
+            return `
+                <div class="min-h-screen flex w-full bg-slate-950 overflow-hidden font-sans">
+                    <div class="hidden lg:flex w-5/12 bg-gradient-to-br from-slate-950 via-blue-950 to-indigo-950 text-white flex-col justify-between p-12 relative overflow-hidden">
+                        <div class="absolute inset-0 z-0">
+                            <img src="https://i.ibb.co.com/chs4HNwN/Burung-Enggang-Kalimantan-Hewan-Khas-Kalimantan-Timur-yang-Menjadi-Simbol-Kehormatan-Suku-Dayak.webp" alt="Burung Enggang" class="w-full h-full object-cover opacity-85 scale-105"/>
+                            <div class="absolute inset-0 bg-gradient-to-t from-slate-950/90 via-blue-950/70 to-slate-950/60 backdrop-blur-[1px]"></div>
+                        </div>
+                        <div class="relative z-10">
+                            <div class="flex items-center gap-3.5 mb-16">
+                                <div class="bg-white/10 backdrop-blur-xl p-2 rounded-xl border border-white/20 shadow-xl flex items-center justify-center w-14 h-14">
+                                    <img src="https://i.ibb.co.com/wZd5Vn8h/Logo-Kabupaten-Kutai-Timur.png" alt="Logo Kutai Timur" class="w-full h-full object-contain"/>
+                                </div>
+                                <div>
+                                    <h2 class="text-xl font-black tracking-wider text-white">SIPRASA</h2>
+                                    <p class="text-[11px] text-blue-400 uppercase tracking-widest font-extrabold">Kutai Timur</p>
+                                </div>
+                            </div>
+                            <h1 class="text-4xl font-black leading-tight mb-4 tracking-tight text-white drop-shadow-md">
+                                Sistem Informasi <br/>
+                                <span class="text-transparent bg-clip-text bg-gradient-to-r from-blue-400 via-indigo-300 to-emerald-400">Sarana & Prasarana</span>
+                            </h1>
+                            <p class="text-slate-200 text-sm leading-relaxed max-w-sm font-medium">Platform pendataan terpadu sarana dan prasarana Sekolah Dasar untuk Dinas Pendidikan Kabupaten Kutai Timur.</p>
+                        </div>
+                        <div class="relative z-10 flex items-center gap-2.5 text-xs text-slate-300 font-semibold">
+                            <span class="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></span>
+                            <span>Secure Government Cloud &bull; 2026</span>
+                        </div>
+                    </div>
+                    <div class="w-full lg:w-7/12 flex items-center justify-center p-6 sm:p-10 bg-gradient-to-br from-slate-50 via-white to-blue-50/30 relative overflow-y-auto">
+                        <div class="w-full max-w-sm my-auto relative z-10">
+                            <div class="mb-6">
+                                <h2 class="text-2xl font-black text-slate-900 mb-1.5 tracking-tight">Portal Masuk Resmi</h2>
+                                <p class="text-slate-500 text-xs sm:text-sm font-medium">Pilih jenis akun Anda untuk mengakses sistem pendataan sarpras.</p>
+                            </div>
+                            <div class="flex bg-slate-200/70 p-1 rounded-xl mb-5 border border-slate-300/60 shadow-inner">
+                                <button type="button" id="tab-sekolah" class="flex-1 py-2.5 text-xs font-extrabold rounded-lg transition-all bg-white shadow-md text-blue-950">Login Sekolah (NPSN)</button>
+                                <button type="button" id="tab-admin" class="flex-1 py-2.5 text-xs font-extrabold rounded-lg transition-all text-slate-500 hover:text-slate-800">Login Admin Dinas</button>
+                            </div>
+                            <div id="login-error" class="hidden mb-5 p-3.5 bg-rose-50 border border-rose-200 rounded-xl text-rose-700 text-xs font-bold flex items-center gap-2.5">
+                                <i class="fa-solid fa-triangle-exclamation"></i> <span id="error-text"></span>
+                            </div>
+                            <form id="login-form" class="space-y-4">
+                                <div id="school-input-group">
+                                    <label class="block text-[11px] font-bold text-slate-600 uppercase tracking-wider mb-1.5">Nomor Pokok Sekolah Nasional (NPSN) <span class="text-rose-500">*</span></label>
+                                    <input type="text" id="npsn-input" placeholder="Contoh: 12345678" maxlength="8" inputmode="numeric" class="w-full px-3.5 py-3 border border-slate-200 rounded-xl focus:ring-4 focus:ring-blue-600/10 focus:border-blue-700 transition-all outline-none text-slate-800 bg-slate-50 font-medium text-sm shadow-inner"/>
+                                    <p class="text-[10px] text-slate-400 mt-1">Contoh NPSN demo: 12345678, 87654321, 11223344</p>
+                                </div>
+                                <div id="admin-input-group" class="hidden">
+                                    <label class="block text-[11px] font-bold text-slate-600 uppercase tracking-wider mb-1.5">Kata Sandi Administrator <span class="text-rose-500">*</span></label>
+                                    <input type="password" id="admin-pass-input" placeholder="Masukkan kata sandi (admin123)" class="w-full px-3.5 py-3 border border-slate-200 rounded-xl focus:ring-4 focus:ring-blue-600/10 focus:border-blue-700 transition-all outline-none text-slate-800 bg-slate-50 font-medium text-sm shadow-inner"/>
+                                </div>
+                                <button type="submit" class="w-full py-3 text-xs sm:text-sm shadow-lg bg-gradient-to-r from-blue-900 via-blue-800 to-indigo-900 text-white font-bold rounded-xl hover:shadow-xl transition-all flex items-center justify-center gap-2">
+                                    <span>Masuk ke Dashboard</span>
+                                    <i class="fa-solid fa-arrow-right"></i>
+                                </button>
+                            </form>
+                        </div>
+                    </div>
+                </div>
+            `;
+        }
+
+        function attachLoginEvents() {
+            let mode = 'sekolah';
+            const tabSekolah = document.getElementById('tab-sekolah');
+            const tabAdmin = document.getElementById('tab-admin');
+            const schoolGroup = document.getElementById('school-input-group');
+            const adminGroup = document.getElementById('admin-input-group');
+            
+            tabSekolah.onclick = () => {
+                mode = 'sekolah';
+                tabSekolah.className = 'flex-1 py-2.5 text-xs font-extrabold rounded-lg transition-all bg-white shadow-md text-blue-950';
+                tabAdmin.className = 'flex-1 py-2.5 text-xs font-extrabold rounded-lg transition-all text-slate-500 hover:text-slate-800';
+                schoolGroup.classList.remove('hidden');
+                adminGroup.classList.add('hidden');
+            };
+
+            tabAdmin.onclick = () => {
+                mode = 'admin';
+                tabAdmin.className = 'flex-1 py-2.5 text-xs font-extrabold rounded-lg transition-all bg-white shadow-md text-blue-950';
+                tabSekolah.className = 'flex-1 py-2.5 text-xs font-extrabold rounded-lg transition-all text-slate-500 hover:text-slate-800';
+                adminGroup.classList.remove('hidden');
+                schoolGroup.classList.add('hidden');
+            };
+
+            document.getElementById('login-form').onsubmit = (e) => {
+                e.preventDefault();
+                const errBox = document.getElementById('login-error');
+                const errText = document.getElementById('error-text');
+                
+                if (mode === 'sekolah') {
+                    const val = document.getElementById('npsn-input').value.trim();
+                    if (val.length < 7 || val.length > 8) {
+                        errText.textContent = "NPSN harus terdiri dari 7 atau 8 digit angka.";
+                        errBox.classList.remove('hidden');
+                        return;
+                    }
+                    State.role = 'school';
+                    State.npsn = val;
+                    State.activeMenu = 'beranda';
+                    if(!State.schools.find(s => s.npsn === val)) {
+                        State.schools.push({ 
+                            npsn: val, 
+                            nama: 'Sekolah Dasar Negeri ' + val, 
+                            status: 'Draf', 
+                            kecamatan: 'Sangatta Utara', 
+                            alamat: 'Kutai Timur',
+                            kepalaSekolah: 'Kepala Sekolah, S.Pd',
+                            nipKepsek: '19700101 199503 1 001',
+                            jumlahSiswa: 150,
+                            jumlahGuru: 10,
+                            lat: '0.505295',
+                            lng: '117.514038',
+                            tanah:[], bangunan:[], ruangan:[], inventaris:[], dokumen:[], usulan:[], utilitas:{ sumberAir:'PDAM', sumberListrik:'PLN', dayaListrik:2200, internet:'Fiber Optic (Indihome/dll)' } 
+                        });
+                    }
+                } else {
+                    const pass = document.getElementById('admin-pass-input').value;
+                    if (pass !== 'admin123') {
+                        errText.textContent = "Kata sandi Admin salah (gunakan admin123).";
+                        errBox.classList.remove('hidden');
+                        return;
+                    }
+                    State.role = 'admin';
+                    State.activeMenu = 'dashboard';
+                }
+                showToast("Login berhasil!", "success");
+                render();
+            };
+        }
+
+        // --- Admin Dashboard ---
+        function renderAdminDashboard() {
+            if (State.selectedSchoolForAdmin) {
+                return renderAdminSchoolDetail();
+            }
+            if (State.selectedUsulanForAdmin) {
+                return renderAdminUsulanDetailModal();
+            }
+
+            const total = State.schools.length;
+            const verified = State.schools.filter(s => s.status === 'Terverifikasi').length;
+            const perbaikan = State.schools.filter(s => s.status === 'Perlu Perbaikan').length;
+            const draf = State.schools.filter(s => s.status === 'Draf' || s.status === 'Dikirim').length;
+
+            const isRekapActive = State.activeMenu === 'rekap-semua' || State.activeMenu === 'semua-usulan' || State.activeMenu === 'grafik-sarpras';
+
+            return `
+                <div class="flex h-screen overflow-hidden bg-slate-950/5 font-sans">
+                    <aside class="w-64 bg-gradient-to-b from-slate-950 via-blue-950 to-slate-950 text-white flex flex-col shrink-0 shadow-xl border-r border-slate-800">
+                        <div class="h-20 flex items-center px-5 border-b border-slate-800 bg-slate-950/60 backdrop-blur-xl">
+                            <div class="bg-white p-1.5 rounded-xl shadow-lg w-10 h-10 flex items-center justify-center shrink-0">
+                                <img src="https://i.ibb.co.com/wZd5Vn8h/Logo-Kabupaten-Kutai-Timur.png" alt="Logo" class="w-full h-full object-contain"/>
+                            </div>
+                            <div class="ml-3">
+                                <h2 class="font-black text-sm text-white">SIPRASA KUTIM</h2>
+                                <p class="text-blue-400 text-[9px] uppercase tracking-widest font-extrabold">Super Admin Dinas</p>
+                            </div>
+                        </div>
+                        <nav class="flex-1 p-3.5 space-y-1.5 overflow-y-auto text-xs font-medium">
+                            <button onclick="State.activeMenu='dashboard';render();" class="w-full flex items-center gap-3 px-3.5 py-3 rounded-xl font-bold ${State.activeMenu==='dashboard'?'bg-gradient-to-r from-blue-600 to-indigo-600 text-white shadow-lg':'text-slate-400 hover:bg-white/10 hover:text-white'}"><i class="fa-solid fa-chart-pie w-4"></i> Dashboard Super Admin</button>
+                            
+                            <div class="space-y-1">
+                                <button onclick="toggleAdminDropdown()" class="w-full flex items-center justify-between px-3.5 py-3 rounded-xl font-bold ${isRekapActive?'bg-blue-900/60 text-white':'text-slate-400 hover:bg-white/10 hover:text-white'}">
+                                    <div class="flex items-center gap-3">
+                                        <i class="fa-solid fa-school-flag w-4"></i>
+                                        <span>Data & Rekap Sekolah</span>
+                                    </div>
+                                    <i id="dropdown-arrow" class="fa-solid fa-chevron-down text-[10px] transition-transform ${isRekapActive ? 'rotate-180' : ''}"></i>
+                                </button>
+                                <div id="admin-dropdown-menu" class="${isRekapActive ? '' : 'hidden'} pl-3 space-y-1 pt-1">
+                                    <button onclick="State.activeMenu='rekap-semua';render();" class="w-full flex items-center gap-2.5 px-3 py-2 rounded-lg font-bold text-xs ${State.activeMenu==='rekap-semua'?'bg-blue-600 text-white shadow-md':'text-slate-400 hover:bg-white/10 hover:text-white'}">
+                                        <i class="fa-solid fa-list-check w-3.5"></i> Rekap Semua Sekolah
+                                    </button>
+                                    <button onclick="State.activeMenu='semua-usulan';render();" class="w-full flex items-center gap-2.5 px-3 py-2 rounded-lg font-bold text-xs ${State.activeMenu==='semua-usulan'?'bg-blue-600 text-white shadow-md':'text-slate-400 hover:bg-white/10 hover:text-white'}">
+                                        <i class="fa-solid fa-file-invoice w-3.5"></i> Daftar Semua Usulan
+                                    </button>
+                                    <button onclick="State.activeMenu='grafik-sarpras';render();" class="w-full flex items-center gap-2.5 px-3 py-2 rounded-lg font-bold text-xs ${State.activeMenu==='grafik-sarpras'?'bg-blue-600 text-white shadow-md':'text-slate-400 hover:bg-white/10 hover:text-white'}">
+                                        <i class="fa-solid fa-chart-line w-3.5"></i> Grafik Analitik
+                                    </button>
+                                </div>
+                            </div>
+                        </nav>
+                        <div class="p-3.5 border-t border-slate-800">
+                            <button onclick="State.role=null;render();" class="flex items-center gap-3 px-3.5 py-2.5 w-full rounded-xl text-rose-400 hover:bg-rose-500/10 font-bold text-xs"><i class="fa-solid fa-right-from-bracket w-4"></i> Keluar Akun</button>
+                        </div>
+                    </aside>
+                    <main class="flex-1 flex flex-col min-w-0 overflow-hidden bg-slate-50">
+                        <header class="h-20 bg-white border-b border-slate-200 px-8 flex items-center justify-between shrink-0 shadow-sm">
+                            <div>
+                                <span class="text-[10px] font-extrabold uppercase tracking-widest text-blue-700 bg-blue-50 px-2.5 py-0.5 rounded-full border border-blue-100">Dinas Pendidikan Kabupaten Kutai Timur</span>
+                                <h1 class="text-xl font-black text-slate-900 tracking-tight mt-0.5">Pengawasan Sekolah & Bidang Pembinaan SD</h1>
+                            </div>
+                            <div class="flex items-center gap-3 pl-5 border-l border-slate-200">
+                                <div class="h-10 w-10 bg-blue-900 text-white rounded-xl flex items-center justify-center font-black text-xs shadow-lg">SA</div>
+                                <div><p class="text-xs font-extrabold text-slate-900 leading-tight">Super Admin Dinas</p><p class="text-[10px] text-slate-500">Bidang Pembinaan SD</p></div>
+                            </div>
+                        </header>
+                        <div class="flex-1 overflow-auto p-6 space-y-6">
+                            ${
+                                State.activeMenu === 'dashboard' ? renderAdminMainDashboard(total, draf, perbaikan, verified) :
+                                State.activeMenu === 'rekap-semua' ? renderAdminRekapSekolah() :
+                                State.activeMenu === 'grafik-sarpras' ? renderAdminGrafikSarpras() :
+                                renderAdminSemuaUsulan()
+                            }
+                        </div>
+                    </main>
+                </div>
+
+                <!-- Modal Tambah Sekolah Baru oleh Super Admin -->
+                <div id="modal-admin-add-school" class="fixed inset-0 z-50 hidden bg-slate-950/60 backdrop-blur-sm flex items-center justify-center p-4">
+                    <div class="bg-white rounded-2xl max-w-sm w-full p-6 shadow-2xl space-y-5 animate-fade-in">
+                        <div class="flex justify-between items-center border-b pb-3">
+                            <h3 class="text-base font-black text-slate-900">Tambah Sekolah Baru</h3>
+                            <button onclick="closeAdminAddSchoolModal()" class="text-slate-400 hover:text-slate-600 text-base font-bold"><i class="fa-solid fa-xmark"></i></button>
+                        </div>
+                        <form onsubmit="handleAdminAddSchool(event)" class="space-y-3.5">
+                            <div>
+                                <label class="block text-[10px] font-bold text-slate-600 uppercase mb-1.5">NPSN (7-8 Digit) <span class="text-rose-500">*</span></label>
+                                <input type="text" id="admin-add-npsn" placeholder="Contoh: 12345678" maxlength="8" required class="w-full px-3.5 py-2.5 border rounded-xl font-mono font-bold bg-slate-50 text-xs"/>
+                            </div>
+                            <div>
+                                <label class="block text-[10px] font-bold text-slate-600 uppercase mb-1.5">Nama Sekolah <span class="text-rose-500">*</span></label>
+                                <input type="text" id="admin-add-nama" placeholder="Contoh: SDN 008 Sangatta Utara" required class="w-full px-3.5 py-2.5 border rounded-xl font-medium bg-slate-50 text-xs"/>
+                            </div>
+                            <div>
+                                <label class="block text-[10px] font-bold text-slate-600 uppercase mb-1.5">Kecamatan <span class="text-rose-500">*</span></label>
+                                <input type="text" id="admin-add-kec" placeholder="Contoh: Sangatta Utara" required class="w-full px-3.5 py-2.5 border rounded-xl font-medium bg-slate-50 text-xs"/>
+                            </div>
+                            <div class="flex justify-end gap-2.5 pt-2">
+                                <button type="button" onclick="closeAdminAddSchoolModal()" class="px-4 py-2.5 bg-slate-100 font-bold text-slate-700 rounded-xl text-xs">Batal</button>
+                                <button type="submit" class="px-5 py-2.5 bg-blue-900 text-white font-black rounded-xl shadow-lg hover:bg-blue-800 text-xs">Simpan</button>
+                            </div>
+                        </form>
+                    </div>
+                </div>
+
+                <!-- Modal Konfirmasi Hapus Sekolah -->
+                <div id="modal-delete-confirm" class="fixed inset-0 z-50 hidden bg-slate-950/60 backdrop-blur-sm flex items-center justify-center p-4">
+                    <div class="bg-white rounded-2xl max-w-sm w-full p-6 shadow-2xl space-y-4 animate-fade-in text-center">
+                        <div class="w-12 h-12 bg-rose-50 text-rose-600 rounded-full flex items-center justify-center mx-auto text-xl font-bold">
+                            <i class="fa-solid fa-triangle-exclamation"></i>
+                        </div>
+                        <h3 class="text-base font-black text-slate-900">Konfirmasi Hapus</h3>
+                        <p class="text-xs text-slate-600 font-medium">Apakah anda yakin akan menghapus data ini?</p>
+                        <div class="flex justify-center gap-3 pt-2">
+                            <button onclick="closeDeleteModal()" class="px-4 py-2 bg-slate-100 font-bold text-slate-700 rounded-xl text-xs">Batal</button>
+                            <button onclick="executeDeleteSchool()" class="px-5 py-2 bg-rose-600 text-white font-black rounded-xl shadow-lg hover:bg-rose-700 text-xs">Ya, Hapus</button>
+                        </div>
+                    </div>
+                </div>
+            `;
+        }
+
+        function renderAdminMainDashboard(total, draf, perbaikan, verified) {
+            let totalBaikCount = 0;
+            let totalRusakCount = 0;
+            let totalUnitCount = 0;
+
+            const categoryMap = {
+                'Ruang Kelas': { total: 0, baik: 0, rusak: 0, usulan: 0 },
+                'Ruang Perpustakaan': { total: 0, baik: 0, rusak: 0, usulan: 0 },
+                'Ruang Guru / Kantor': { total: 0, baik: 0, rusak: 0, usulan: 0 },
+                'Ruang UKS': { total: 0, baik: 0, rusak: 0, usulan: 0 },
+                'Sanitasi / Toilet': { total: 0, baik: 0, rusak: 0, usulan: 0 },
+                'Mebelair': { total: 0, baik: 0, rusak: 0, usulan: 0 },
+                'Alat TIK': { total: 0, baik: 0, rusak: 0, usulan: 0 }
+            };
+
+            State.schools.forEach(s => {
+                (s.inventaris || []).forEach(inv => {
+                    let catName = 'Mebelair';
+                    const lower = (inv.namaBarang || '').toLowerCase();
+                    if(lower.includes('komputer') || lower.includes('tik') || lower.includes('laptop')) catName = 'Alat TIK';
+                    else if(lower.includes('meja') || lower.includes('kursi') || lower.includes('lemari') || lower.includes('papan')) catName = 'Mebelair';
+                    
+                    if(categoryMap[catName]) {
+                        categoryMap[catName].total += (inv.jumlahTotal || 0);
+                        categoryMap[catName].baik += (inv.jumlahBaik || 0);
+                        categoryMap[catName].rusak += (inv.jumlahRusak || 0);
+                    }
+                    totalBaikCount += (inv.jumlahBaik || 0);
+                    totalRusakCount += (inv.jumlahRusak || 0);
+                    totalUnitCount += (inv.jumlahTotal || 0);
+                });
+
+                (s.ruangan || []).forEach(r => {
+                    let catName = 'Ruang Kelas';
+                    const kat = (r.kategoriRuang || '').toLowerCase();
+                    if(kat.includes('perpustakaan')) catName = 'Ruang Perpustakaan';
+                    else if(kat.includes('guru') || kat.includes('kepala')) catName = 'Ruang Guru / Kantor';
+                    else if(kat.includes('uks')) catName = 'Ruang UKS';
+                    else if(kat.includes('toilet') || kat.includes('sanitasi')) catName = 'Sanitasi / Toilet';
+
+                    if(categoryMap[catName]) {
+                        categoryMap[catName].total += 1;
+                        if(r.kondisi === 'Baik') categoryMap[catName].baik += 1;
+                        else categoryMap[catName].rusak += 1;
+                    }
+                    totalUnitCount += 1;
+                    if(r.kondisi === 'Baik') totalBaikCount += 1; else totalRusakCount += 1;
+                });
+
+                (s.usulan || []).forEach(u => {
+                    const jb = (u.jenisBantuan || '').toLowerCase();
+                    let targetCat = 'Ruang Kelas';
+                    if(jb.includes('perpustakaan')) targetCat = 'Ruang Perpustakaan';
+                    else if(jb.includes('guru') || jb.includes('kantor')) targetCat = 'Ruang Guru / Kantor';
+                    else if(jb.includes('uks')) targetCat = 'Ruang UKS';
+                    else if(jb.includes('sanitasi') || jb.includes('toilet')) targetCat = 'Sanitasi / Toilet';
+                    else if(jb.includes('mebelair')) targetCat = 'Mebelair';
+                    else if(jb.includes('tik') || jb.includes('komputer')) targetCat = 'Alat TIK';
+
+                    if(categoryMap[targetCat]) {
+                        categoryMap[targetCat].usulan += 1;
+                    }
+                });
+            });
+
+            if(totalUnitCount === 0) {
+                totalUnitCount = 100;
+                totalBaikCount = 80;
+                totalRusakCount = 20;
+            }
+
+            const pctBaik = Math.round((totalBaikCount / totalUnitCount) * 100);
+            const pctRusak = 100 - pctBaik;
+            const categories = Object.keys(categoryMap).map(k => ({ name: k, ...categoryMap[k] }));
+            const maxUsulan = Math.max(...categories.map(c => c.usulan), 5);
+
+            return `
+                <div class="space-y-6">
+                    <div class="grid grid-cols-2 md:grid-cols-4 gap-4">
+                        <div class="bg-white p-5 rounded-2xl border border-slate-200 shadow-lg"><p class="text-[10px] font-extrabold uppercase text-slate-500">Total Sekolah</p><h3 class="text-3xl font-black text-slate-900 mt-1">${total}</h3></div>
+                        <div class="bg-white p-5 rounded-2xl border border-slate-200 shadow-lg"><p class="text-[10px] font-extrabold uppercase text-blue-600">Pending / Draf</p><h3 class="text-3xl font-black text-blue-600 mt-1">${draf}</h3></div>
+                        <div class="bg-white p-5 rounded-2xl border border-slate-200 shadow-lg"><p class="text-[10px] font-extrabold uppercase text-rose-600">Perlu Perbaikan</p><h3 class="text-3xl font-black text-rose-600 mt-1">${perbaikan}</h3></div>
+                        <div class="bg-white p-5 rounded-2xl border border-slate-200 shadow-lg"><p class="text-[10px] font-extrabold uppercase text-emerald-600">Terverifikasi Valid</p><h3 class="text-3xl font-black text-emerald-600 mt-1">${verified}</h3></div>
+                    </div>
+
+                    <div class="grid grid-cols-1 md:grid-cols-3 gap-5">
+                        <div class="bg-white p-6 rounded-2xl border border-slate-200 shadow-lg flex flex-col items-center justify-center text-center space-y-3">
+                            <h4 class="text-xs font-black text-slate-700 uppercase tracking-wider">Diagram Kondisi Fisik Total</h4>
+                            <div class="relative w-36 h-36 rounded-full flex items-center justify-center shadow-inner transition-all hover:scale-105 duration-300" style="background: conic-gradient(#10b981 0% ${pctBaik}%, #f43f5e ${pctBaik}% 100%);">
+                                <div class="w-24 h-24 bg-white rounded-full flex flex-col items-center justify-center shadow-md">
+                                    <span class="text-[10px] font-bold text-slate-500">Total Unit</span>
+                                    <span class="text-xs font-black text-slate-900">${totalUnitCount > 1000 ? (totalUnitCount/1000).toFixed(1)+'k' : totalUnitCount}</span>
+                                </div>
+                            </div>
+                            <div class="flex items-center gap-3 text-[11px] font-bold">
+                                <span class="flex items-center gap-1.5 text-emerald-700"><span class="w-2.5 h-2.5 rounded-full bg-emerald-500 animate-pulse"></span> Baik (${pctBaik}%)</span>
+                                <span class="flex items-center gap-1.5 text-rose-700"><span class="w-2.5 h-2.5 rounded-full bg-rose-500 animate-pulse"></span> Rusak (${pctRusak}%)</span>
+                            </div>
+                        </div>
+
+                        <div class="md:col-span-2 bg-white p-6 rounded-2xl border border-slate-200 shadow-lg space-y-3 flex flex-col justify-between">
+                            <div class="flex justify-between items-center">
+                                <h4 class="text-xs font-black text-slate-700 uppercase tracking-wider">Kurva Tren Volume Usulan per Kategori Sarpras</h4>
+                                <span class="px-2.5 py-0.5 bg-indigo-50 text-indigo-700 font-bold text-[10px] rounded-lg">Berdasarkan Isian Sekolah</span>
+                            </div>
+                            <div class="h-36 w-full flex items-end justify-between px-2 pt-5 pb-2 relative border-b border-l border-slate-200">
+                                <div class="absolute inset-x-0 top-0 border-t border-slate-100"></div>
+                                <div class="absolute inset-x-0 top-1/2 border-t border-slate-100"></div>
+                                
+                                ${categories.map((c) => {
+                                    const heightPercent = Math.min(100, Math.max(15, (c.usulan / maxUsulan) * 100));
+                                    return `
+                                        <div class="flex flex-col items-center gap-1.5 z-10 group relative flex-1">
+                                            <div class="absolute -top-7 bg-slate-900 text-white text-[9px] font-bold py-1 px-2 rounded-md opacity-0 group-hover:opacity-100 transition-opacity whitespace-nowrap shadow-md">
+                                                ${c.name}: ${c.usulan} Usulan
+                                            </div>
+                                            <div style="height: ${heightPercent}%" class="w-6 bg-gradient-to-t from-blue-700 to-indigo-500 rounded-t-lg transition-all duration-300 group-hover:bg-blue-600 group-hover:scale-y-105 shadow"></div>
+                                            <span class="text-[9px] font-bold text-slate-500 truncate w-14 text-center" title="${c.name}">${c.name.split(' ')[0]}</span>
+                                        </div>
+                                    `;
+                                }).join('')}
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            `;
+        }
+
+        function renderAdminGrafikSarpras() {
+            return renderAdminMainDashboard(State.schools.length, 2, 1, 1);
+        }
+
+        function renderAdminRekapSekolah() {
+            return `
+                <div class="bg-white rounded-2xl border border-slate-200 shadow-lg overflow-hidden p-6 space-y-5">
+                    <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+                        <div>
+                            <h3 class="text-lg font-black text-slate-900">Rekapitulasi Seluruh Data Isian Sekolah Dasar</h3>
+                            <p class="text-xs text-slate-500 mt-0.5">Manajemen entitas data profil dan akun sekolah.</p>
+                        </div>
+                        <div class="flex flex-wrap items-center gap-2">
+                            <button onclick="downloadExcelTemplate()" class="px-3.5 py-2 bg-emerald-50 text-emerald-800 font-bold text-xs rounded-xl border border-emerald-200 hover:bg-emerald-100"><i class="fa-solid fa-file-excel mr-1.5"></i> Template</button>
+                            <button onclick="exportAkunSekolah()" class="px-3.5 py-2 bg-amber-50 text-amber-800 font-bold text-xs rounded-xl border border-amber-200 hover:bg-amber-100"><i class="fa-solid fa-key mr-1.5"></i> Export Akun</button>
+                            <button onclick="document.getElementById('import-file-input').click()" class="px-3.5 py-2 bg-blue-50 text-blue-800 font-bold text-xs rounded-xl border border-blue-200 hover:bg-blue-100"><i class="fa-solid fa-file-import mr-1.5"></i> Import</button>
+                            <input type="file" id="import-file-input" class="hidden" accept=".xlsx,.xls,.csv" onchange="handleImportData(event)"/>
+                            <button onclick="openAdminAddSchoolModal()" class="px-4 py-2 bg-blue-900 text-white font-bold text-xs rounded-xl shadow-lg hover:bg-blue-800"><i class="fa-solid fa-plus mr-1.5"></i> Tambah Sekolah</button>
+                        </div>
+                    </div>
+                    <div class="overflow-x-auto">
+                        <table class="w-full text-left text-xs whitespace-nowrap">
+                            <thead class="bg-slate-50 text-slate-600 border-b font-black uppercase text-[10px]">
+                                <tr>
+                                    <th class="px-5 py-3">NPSN</th>
+                                    <th class="px-5 py-3">Sekolah</th>
+                                    <th class="px-5 py-3">Kecamatan</th>
+                                    <th class="px-5 py-3">Siswa/Guru</th>
+                                    <th class="px-5 py-3">Gedung/Ruang</th>
+                                    <th class="px-5 py-3">Internet</th>
+                                    <th class="px-5 py-3 text-right">Aksi</th>
+                                </tr>
+                            </thead>
+                            <tbody class="divide-y divide-slate-100">
+                                ${State.schools.map((s, idx) => `
+                                    <tr class="hover:bg-blue-50/50">
+                                        <td class="px-5 py-3.5 font-mono font-bold">${s.npsn}</td>
+                                        <td class="px-5 py-3.5 font-black text-slate-900">${s.nama}</td>
+                                        <td class="px-5 py-3.5 text-slate-600">${s.kecamatan || '-'}</td>
+                                        <td class="px-5 py-3.5 font-bold">${s.jumlahSiswa || 0} / ${s.jumlahGuru || 0}</td>
+                                        <td class="px-5 py-3.5">${(s.bangunan||[]).length} / ${(s.ruangan||[]).length}</td>
+                                        <td class="px-5 py-3.5"><span class="px-2 py-0.5 bg-blue-50 text-blue-800 font-bold rounded-md text-[10px]">${s.utilitas?.internet || 'Fiber Optic'}</span></td>
+                                        <td class="px-5 py-3.5 text-right flex items-center justify-end gap-2">
+                                            <button onclick="State.selectedSchoolForAdmin='${s.npsn}';render();" class="px-3 py-1.5 bg-blue-900 text-white font-bold rounded-lg text-[11px]">Detail Isian</button>
+                                            <button onclick="confirmDeleteSchool(${idx})" class="px-2.5 py-1.5 bg-rose-50 text-rose-700 font-bold rounded-lg text-[11px] border border-rose-200 hover:bg-rose-100" title="Hapus Sekolah"><i class="fa-solid fa-trash"></i></button>
+                                        </td>
+                                    </tr>
+                                `).join('')}
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            `;
+        }
+
+        function downloadExcelTemplate() {
+            const headers = "NPSN,Nama Sekolah,Kecamatan,Alamat,Kepala Sekolah,NIP Kepsek,Jumlah Siswa,Jumlah Guru\n";
+            const sample = "12345678,SDN 001 Sangatta Utara,Sangatta Utara,Jl. Diponegoro No.12,Drs. H. Ahmad Fauzi,196805121993031008,480,28\n";
+            const blob = new Blob([headers + sample], { type: 'text/csv;charset=utf-8;' });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = 'Template_Data_Sekolah_SIPRASA.csv';
+            a.click();
+            showToast("Template Excel berhasil diunduh.", "success");
+        }
+
+        window.downloadExcelTemplate = downloadExcelTemplate;
+
+        function exportAkunSekolah() {
+            let content = "NPSN,Nama Sekolah,Kecamatan,Password Login\n";
+            State.schools.forEach(s => {
+                content += `${s.npsn},"${s.nama}","${s.kecamatan || '-'}",${s.npsn}\n`;
+            });
+            const blob = new Blob([content], { type: 'text/csv;charset=utf-8;' });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = 'Export_Akun_Password_Sekolah.csv';
+            a.click();
+            showToast("Data akun & password berhasil diexport.", "success");
+        }
+
+        window.exportAkunSekolah = exportAkunSekolah;
+
+        function handleImportData(e) {
+            const file = e.target.files[0];
+            if(!file) return;
+            setTimeout(() => {
+                showToast(`Berhasil mengimpor data dari ${file.name}.`, "success");
+                render();
+            }, 800);
+        }
+
+        window.handleImportData = handleImportData;
+
+        function renderAdminSemuaUsulan() {
+            let allUsulan = [];
+            State.schools.forEach(s => {
+                (s.usulan || []).forEach(u => {
+                    allUsulan.push({ ...u, namaSekolah: s.nama, npsn: s.npsn, kecamatan: s.kecamatan });
+                });
+            });
+
+            return `
+                <div class="bg-white rounded-2xl border border-slate-200 shadow-lg overflow-hidden p-6 space-y-5">
+                    <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+                        <div>
+                            <h3 class="text-lg font-black text-slate-900">Daftar Seluruh Usulan Sarpras Sekolah</h3>
+                            <p class="text-xs text-slate-500 mt-0.5">Rekapitulasi permohonan dari seluruh sekolah di Kutai Timur.</p>
+                        </div>
+                        <div class="flex items-center gap-2">
+                            <button onclick="exportUsulanToExcel()" class="px-4 py-2 bg-emerald-700 text-white font-bold text-xs rounded-xl shadow-lg hover:bg-emerald-800 transition-all"><i class="fa-solid fa-file-excel mr-1.5"></i> Export ke Excel</button>
+                            <button onclick="window.print()" class="px-4 py-2 bg-blue-900 text-white font-bold text-xs rounded-xl shadow-lg hover:bg-blue-800 transition-all"><i class="fa-solid fa-print mr-1.5"></i> Cetak Semua Usulan</button>
+                        </div>
+                    </div>
+                    <div class="overflow-x-auto">
+                        <table class="w-full text-left text-xs whitespace-nowrap">
+                            <thead class="bg-slate-50 text-slate-600 border-b font-black uppercase text-[10px]">
+                                <tr>
+                                    <th class="px-5 py-3">Sekolah</th>
+                                    <th class="px-5 py-3">Usulan</th>
+                                    <th class="px-5 py-3">Volume</th>
+                                    <th class="px-5 py-3">Prioritas</th>
+                                    <th class="px-5 py-3">Alasan</th>
+                                    <th class="px-5 py-3 text-right">Aksi</th>
+                                </tr>
+                            </thead>
+                            <tbody class="divide-y divide-slate-100">
+                                ${allUsulan.map((u, index) => `
+                                    <tr class="hover:bg-blue-50/50">
+                                        <td class="px-5 py-3.5 font-black text-slate-900">${u.namaSekolah}<br/><span class="text-[10px] font-mono font-normal text-slate-500">${u.npsn}</span></td>
+                                        <td class="px-5 py-3.5 font-bold text-blue-900">${u.jenisBantuan}</td>
+                                        <td class="px-5 py-3.5">${u.volume}</td>
+                                        <td class="px-5 py-3.5"><span class="px-2.5 py-0.5 rounded-full text-[10px] font-bold bg-rose-50 text-rose-700">${u.prioritas}</span></td>
+                                        <td class="px-5 py-3.5 text-slate-600 max-w-xs truncate">${u.alasan}</td>
+                                        <td class="px-5 py-3.5 text-right flex items-center justify-end gap-1.5">
+                                            <button onclick='openAdminUsulanModal(${JSON.stringify(u)})' class="px-3.5 py-1.5 bg-blue-900 text-white font-bold rounded-lg text-[11px] shadow hover:bg-blue-800"><i class="fa-solid fa-print mr-1"></i> Cetak</button>
+                                        </td>
+                                    </tr>
+                                `).join('') || '<tr><td colspan="6" class="text-center py-6 text-slate-400 font-medium">Belum ada usulan sarpras dari sekolah.</td></tr>'}
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            `;
+        }
+
+        function exportUsulanToExcel() {
+            let csvContent = "NPSN,Nama Sekolah,Kecamatan,Jenis Bantuan / Usulan,Volume,Skala Prioritas,Alasan / Urgensi,Tanggal Usul\n";
+            State.schools.forEach(s => {
+                (s.usulan || []).forEach(u => {
+                    csvContent += `${s.npsn},"${s.nama}","${s.kecamatan || '-'}","${u.jenisBantuan}","${u.volume}","${u.prioritas}","${u.alasan}","${u.tanggalUsul || '-'}"\n`;
+                });
+            });
+
+            const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = 'Rekapitulasi_Usulan_Sarpras_Kutim.csv';
+            a.click();
+            showToast("Data usulan berhasil diexport ke format Excel.", "success");
+        }
+        window.exportUsulanToExcel = exportUsulanToExcel;
+
+        function openAdminUsulanModal(usulanObj) {
+            State.selectedUsulanForAdmin = usulanObj;
+            render();
+        }
+        window.openAdminUsulanModal = openAdminUsulanModal;
+
+        function renderAdminUsulanDetailModal() {
+            const u = State.selectedUsulanForAdmin;
+            if(!u) return renderAdminDashboard();
+            const school = State.schools.find(s => s.npsn === u.npsn) || { nama: u.namaSekolah, npsn: u.npsn, alamat: 'Kutai Timur', kepalaSekolah: 'Kepala Sekolah', nipKepsek: '-' };
+
+            return `
+                <div class="fixed inset-0 z-50 bg-slate-950/70 backdrop-blur-sm flex items-center justify-center p-4 overflow-y-auto">
+                    <div class="bg-white rounded-2xl max-w-2xl w-full p-8 shadow-2xl space-y-6 animate-fade-in relative text-xs my-auto">
+                        <button onclick="State.selectedUsulanForAdmin=null;render();" class="absolute top-6 right-6 text-slate-400 hover:text-slate-600 text-lg font-bold no-print"><i class="fa-solid fa-xmark"></i></button>
+
+                        <!-- Kop Surat Resmi -->
+                        <div class="border-b-4 border-double border-slate-900 pb-5 flex items-center justify-between">
+                            <div class="w-16 h-16 flex items-center justify-center shrink-0">
+                                <img src="https://i.ibb.co.com/wZd5Vn8h/Logo-Kabupaten-Kutai-Timur.png" alt="Logo Kutim" class="w-full h-full object-contain"/>
+                            </div>
+                            <div class="text-center flex-1 px-3">
+                                <h3 class="text-xs font-bold uppercase tracking-wider text-slate-700">PEMERINTAH KABUPATEN KUTAI TIMUR</h3>
+                                <h3 class="text-xs font-bold uppercase tracking-wider text-slate-700">DINAS PENDIDIKAN DAN KEBUDAYAAN</h3>
+                                <h2 class="text-lg font-black uppercase text-slate-900 mt-0.5">${school.nama}</h2>
+                                <p class="text-[11px] text-slate-600 mt-0.5">${school.alamat || 'Alamat Sekolah &bull; Kabupaten Kutai Timur'}</p>
+                                <p class="text-[11px] font-mono text-slate-600">NPSN: ${school.npsn}</p>
+                            </div>
+                            <div class="w-16"></div>
+                        </div>
+
+                        <div class="text-center space-y-1">
+                            <h4 class="font-black text-sm uppercase tracking-wide text-slate-900">SURAT USULAN KEBUTUHAN SARANA DAN PRASARANA</h4>
+                            <p class="text-[11px] text-slate-500 font-mono">Nomor: 000 / SIPRASA-SD / II / 2026</p>
+                        </div>
+
+                        <div class="p-4 bg-slate-50 rounded-xl border space-y-2 text-xs">
+                            <div class="grid grid-cols-2 gap-2">
+                                <div><span class="font-bold text-slate-500 uppercase text-[10px]">Jenis Bantuan:</span><p class="font-black text-blue-900">${u.jenisBantuan}</p></div>
+                                <div><span class="font-bold text-slate-500 uppercase text-[10px]">Volume:</span><p class="font-black text-slate-900">${u.volume}</p></div>
+                            </div>
+                            <div class="grid grid-cols-2 gap-2 pt-1">
+                                <div><span class="font-bold text-slate-500 uppercase text-[10px]">Skala Prioritas:</span><p class="font-black text-rose-600">${u.prioritas}</p></div>
+                                <div><span class="font-bold text-slate-500 uppercase text-[10px]">Tanggal Usul:</span><p class="font-medium text-slate-700">${u.tanggalUsul || '2026-02-15'}</p></div>
+                            </div>
+                            <div><span class="font-bold text-slate-500 uppercase text-[10px]">Alasan / Urgensi:</span><p class="font-medium text-slate-700 italic">"${u.alasan}"</p></div>
+                        </div>
+
+                        <div class="flex justify-end pt-4">
+                            <div class="text-center w-56 space-y-14">
+                                <div>
+                                    <p class="text-xs text-slate-700">Sangatta, ${new Date().toLocaleDateString('id-ID', {day: 'numeric', month: 'long', year: 'numeric'})}</p>
+                                    <p class="text-xs font-bold text-slate-900 mt-0.5">Kepala Sekolah,</p>
+                                </div>
+                                <div>
+                                    <p class="font-black text-slate-900 underline text-xs">${school.kepalaSekolah || '(Nama Kepala Sekolah)'}</p>
+                                    <p class="text-[10px] font-mono text-slate-600 mt-0.5">NIP. ${school.nipKepsek || '...........................................'}</p>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="flex justify-end gap-3 pt-4 border-t no-print">
+                            <button onclick="State.selectedUsulanForAdmin=null;render();" class="px-4 py-2.5 bg-slate-100 font-bold text-slate-700 rounded-xl text-xs">Tutup</button>
+                            <button onclick="window.print()" class="px-6 py-2.5 bg-blue-900 text-white font-black rounded-xl shadow-lg hover:bg-blue-800 text-xs"><i class="fa-solid fa-print mr-1.5"></i> Cetak Surat Usulan</button>
+                        </div>
+                    </div>
+                </div>
+            `;
+        }
+
+        function renderAdminSchoolDetail() {
+            const school = State.schools.find(s => s.npsn === State.selectedSchoolForAdmin);
+            if (!school) { State.selectedSchoolForAdmin = null; return renderAdminDashboard(); }
+
+            const lat = school.lat || '0.505295';
+            const lng = school.lng || '117.514038';
+
+            return `
+                <div class="flex h-screen overflow-hidden bg-slate-950/5 font-sans">
+                    <main class="flex-1 flex flex-col min-w-0 overflow-hidden bg-slate-50 p-6 overflow-y-auto">
+                        <div class="max-w-3xl mx-auto w-full bg-white rounded-2xl shadow-xl border border-slate-200 p-8 space-y-6 print-container">
+                            <div class="border-b-4 border-double border-slate-900 pb-5 flex items-center justify-between">
+                                <div class="w-16 h-16 flex items-center justify-center shrink-0">
+                                    <img src="https://i.ibb.co.com/wZd5Vn8h/Logo-Kabupaten-Kutai-Timur.png" alt="Logo Kutim" class="w-full h-full object-contain"/>
+                                </div>
+                                <div class="text-center flex-1 px-3">
+                                    <h3 class="text-xs font-bold uppercase tracking-wider text-slate-700">PEMERINTAH KABUPATEN KUTAI TIMUR</h3>
+                                    <h3 class="text-xs font-bold uppercase tracking-wider text-slate-700">DINAS PENDIDIKAN DAN KEBUDAYAAN</h3>
+                                    <h2 class="text-lg font-black uppercase text-slate-900 mt-0.5">${school.nama}</h2>
+                                    <p class="text-[11px] text-slate-600 mt-0.5">${school.alamat || 'Alamat Sekolah &bull; Kabupaten Kutai Timur'}</p>
+                                    <p class="text-[11px] font-mono text-slate-600">NPSN: ${school.npsn} &bull; Status: ${school.status}</p>
+                                </div>
+                                <div class="w-16"></div>
+                            </div>
+
+                            <div class="flex justify-between items-center border-b pb-4 no-print">
+                                <div>
+                                    <span class="px-2.5 py-0.5 bg-blue-50 text-blue-800 font-mono text-[10px] font-black rounded-full">NPSN: ${school.npsn}</span>
+                                    <h2 class="text-2xl font-black text-slate-900 mt-1">${school.nama}</h2>
+                                    <p class="text-xs text-slate-500 font-medium">Kecamatan: ${school.kecamatan || '-'}</p>
+                                </div>
+                                <div class="flex items-center gap-2.5">
+                                    <button onclick="window.print()" class="px-4 py-2 bg-blue-900 text-white font-bold rounded-xl text-xs shadow-lg hover:bg-blue-800"><i class="fa-solid fa-print mr-1.5"></i> Cetak Profil</button>
+                                    <button onclick="State.selectedSchoolForAdmin=null;render();" class="px-4 py-2 bg-slate-100 font-bold rounded-xl text-slate-700 hover:bg-slate-200 text-xs">Kembali</button>
+                                </div>
+                            </div>
+
+                            <div class="grid grid-cols-2 md:grid-cols-4 gap-3 text-xs">
+                                <div class="bg-slate-50 p-3.5 rounded-xl border"><p class="text-[10px] font-bold text-slate-500 uppercase">Jumlah Siswa</p><p class="text-base font-black text-slate-900 mt-0.5">${school.jumlahSiswa || 0}</p></div>
+                                <div class="bg-slate-50 p-3.5 rounded-xl border"><p class="text-[10px] font-bold text-slate-500 uppercase">Jumlah Guru</p><p class="text-base font-black text-slate-900 mt-0.5">${school.jumlahGuru || 0}</p></div>
+                                <div class="bg-slate-50 p-3.5 rounded-xl border"><p class="text-[10px] font-bold text-slate-500 uppercase">Gedung / Bangunan</p><p class="text-base font-black text-slate-900 mt-0.5">${(school.bangunan || []).length} Unit</p></div>
+                                <div class="bg-slate-50 p-3.5 rounded-xl border"><p class="text-[10px] font-bold text-slate-500 uppercase">Inventaris Barang</p><p class="text-base font-black text-slate-900 mt-0.5">${(school.inventaris || []).length} Jenis</p></div>
+                            </div>
+
+                            <div class="space-y-2">
+                                <h4 class="text-xs font-black text-slate-700 uppercase tracking-wider">Titik Peta & Koordinat Lokasi</h4>
+                                <div class="text-xs text-slate-600 font-mono mb-2">Latitude: ${lat}, Longitude: ${lng}</div>
+                                <div class="w-full h-48 rounded-xl overflow-hidden border border-slate-200 shadow-inner bg-slate-100">
+                                    <iframe width="100%" height="100%" frameborder="0" scrolling="no" marginheight="0" marginwidth="0" src="https://maps.google.com/maps?q=${lat},${lng}&z=15&output=embed"></iframe>
+                                </div>
+                            </div>
+
+                            <div class="bg-blue-50/70 p-6 rounded-2xl border border-blue-200 space-y-4 text-xs no-print">
+                                <h3 class="font-black text-blue-950 text-sm flex items-center gap-2"><i class="fa-solid fa-clipboard-check text-blue-700"></i> Panel Keputusan Verifikasi Super Admin</h3>
+                                <div>
+                                    <label class="block text-[10px] font-bold uppercase text-slate-700 mb-1.5">Ubah Status Verifikasi</label>
+                                    <select id="verif-status" class="w-full px-3.5 py-2.5 border border-slate-300 rounded-xl bg-white font-bold text-slate-800 focus:ring-4 focus:ring-blue-600/10">
+                                        <option value="Terverifikasi" ${school.status === 'Terverifikasi' ? 'selected' : ''}>Terverifikasi (Disetujui & Valid)</option>
+                                        <option value="Perlu Perbaikan" ${school.status === 'Perlu Perbaikan' ? 'selected' : ''}>Perlu Perbaikan (Revisi Sekolah)</option>
+                                        <option value="Dalam Verifikasi" ${school.status === 'Dalam Verifikasi' ? 'selected' : ''}>Dalam Proses Pemeriksaan</option>
+                                    </select>
+                                </div>
+                                <div>
+                                    <label class="block text-[10px] font-bold uppercase text-slate-700 mb-1.5">Catatan / Alasan Revisi untuk Sekolah</label>
+                                    <textarea id="verif-catatan" rows="3" class="w-full px-3.5 py-2.5 border border-slate-300 rounded-xl bg-white font-medium text-slate-800 focus:ring-4 focus:ring-blue-600/10" placeholder="Tuliskan catatan atau bagian yang harus diperbaiki oleh pihak sekolah...">${school.catatanAdmin || ''}</textarea>
+                                </div>
+                                <div class="flex justify-end">
+                                    <button onclick="saveAdminVerification('${school.npsn}')" class="px-6 py-3 bg-blue-900 text-white font-black rounded-xl shadow-lg hover:bg-blue-800 transition-all text-xs">Simpan Keputusan Verifikasi</button>
+                                </div>
+                            </div>
+                        </div>
+                    </main>
+                </div>
+            `;
+        }
+
+        function openAdminAddSchoolModal() {
+            const m = document.getElementById('modal-admin-add-school');
+            if(m) m.classList.remove('hidden');
+        }
+        window.openAdminAddSchoolModal = openAdminAddSchoolModal;
+
+        function closeAdminAddSchoolModal() {
+            const m = document.getElementById('modal-admin-add-school');
+            if(m) m.classList.add('hidden');
+        }
+        window.closeAdminAddSchoolModal = closeAdminAddSchoolModal;
+
+        function confirmDeleteSchool(idx) {
+            State.deleteTargetType = 'school';
+            State.deleteTargetIndex = idx;
+            const m = document.getElementById('modal-delete-confirm');
+            if(m) m.classList.remove('hidden');
+        }
+        window.confirmDeleteSchool = confirmDeleteSchool;
+
+        function closeDeleteModal() {
+            const m = document.getElementById('modal-delete-confirm');
+            if(m) m.classList.add('hidden');
+            State.deleteTargetType = null;
+            State.deleteTargetIndex = null;
+        }
+        window.closeDeleteModal = closeDeleteModal;
+
+        function executeDeleteSchool() {
+            if (State.deleteTargetType === 'school' && State.deleteTargetIndex !== null) {
+                State.schools.splice(State.deleteTargetIndex, 1);
+                showToast("Data berhasil dihapus.", "success");
+            }
+            closeDeleteModal();
+            render();
+        }
+        window.executeDeleteSchool = executeDeleteSchool;
+
+        function toggleAdminDropdown() {
+            const menu = document.getElementById('admin-dropdown-menu');
+            const arrow = document.getElementById('dropdown-arrow');
+            if(menu) {
+                menu.classList.toggle('hidden');
+                if(arrow) arrow.classList.toggle('rotate-180');
+            }
+        }
+        window.toggleAdminDropdown = toggleAdminDropdown;
+
+        function handleAdminAddSchool(e) {
+            e.preventDefault();
+            const npsn = document.getElementById('admin-add-npsn').value.trim();
+            const nama = document.getElementById('admin-add-nama').value.trim();
+            const kecamatan = document.getElementById('admin-add-kec').value.trim();
+
+            if(npsn.length < 7 || npsn.length > 8) {
+                showToast("NPSN harus 7 atau 8 digit.", "error");
+                return;
+            }
+            if(State.schools.find(s => s.npsn === npsn)) {
+                showToast("NPSN sudah terdaftar dalam sistem.", "error");
+                return;
+            }
+
+            State.schools.push({
+                npsn: npsn,
+                nama: nama,
+                status: 'Draf',
+                kecamatan: kecamatan,
+                alamat: 'Kutai Timur',
+                kepalaSekolah: 'Kepala Sekolah, S.Pd',
+                nipKepsek: '19750101 200003 1 001',
+                jumlahSiswa: 120,
+                jumlahGuru: 10,
+                lat: '0.505295',
+                lng: '117.514038',
+                tanah: [], bangunan: [], ruangan: [], inventaris: [], dokumen: [], usulan: [],
+                utilitas: { sumberAir: 'PDAM', sumberListrik: 'PLN', dayaListrik: 2200, internet: 'Fiber Optic (Indihome/dll)' }
+            });
+
+            showToast("Sekolah baru berhasil ditambahkan.", "success");
+            closeAdminAddSchoolModal();
+            render();
+        }
+        window.handleAdminAddSchool = handleAdminAddSchool;
+
+        function saveAdminVerification(npsn) {
+            const school = State.schools.find(s => s.npsn === npsn);
+            if (school) {
+                school.status = document.getElementById('verif-status').value;
+                school.catatanAdmin = document.getElementById('verif-catatan').value;
+                showToast("Keputusan verifikasi berhasil disimpan.", "success");
+                State.selectedSchoolForAdmin = null;
+                render();
+            }
+        }
+
+        // --- School Dashboard State for Profile Edit Mode ---
+        let isProfileEditMode = false;
+
+        function renderSchoolDashboard() {
+            const school = State.schools.find(s => s.npsn === State.npsn) || { 
+                npsn: State.npsn, 
+                nama: 'Sekolah Dasar Negeri ' + State.npsn, 
+                status: 'Draf', 
+                kecamatan: 'Sangatta Utara',
+                alamat: '',
+                kepalaSekolah: '',
+                nipKepsek: '',
+                jumlahSiswa: 0,
+                jumlahGuru: 0,
+                lat: '0.505295',
+                lng: '117.514038',
+                tanah:[], bangunan:[], ruangan:[], inventaris:[], dokumen:[], usulan:[], utilitas:{} 
+            };
+
+            return `
+                <div class="flex h-screen overflow-hidden bg-slate-950/5 font-sans">
+                    <aside class="w-64 bg-gradient-to-b from-slate-950 via-blue-950 to-slate-950 text-white flex flex-col shrink-0 shadow-xl border-r border-slate-800">
+                        <div class="h-20 flex items-center px-5 border-b border-slate-800 bg-slate-950/60 backdrop-blur-xl">
+                            <div class="bg-white p-1.5 rounded-xl shadow-lg w-10 h-10 flex items-center justify-center shrink-0">
+                                <img src="https://i.ibb.co.com/wZd5Vn8h/Logo-Kabupaten-Kutai-Timur.png" alt="Logo" class="w-full h-full object-contain"/>
+                            </div>
+                            <div class="ml-3">
+                                <h2 class="font-black text-sm text-white">SIPRASA</h2>
+                                <p class="text-blue-400 text-[9px] uppercase tracking-widest font-extrabold">Panel Sekolah</p>
+                            </div>
+                        </div>
+                        <nav class="flex-1 p-3.5 space-y-1 overflow-y-auto text-xs font-medium">
+                            <button onclick="State.activeMenu='beranda';render();" class="w-full flex items-center gap-3 px-3.5 py-3 rounded-xl ${State.activeMenu==='beranda'?'bg-blue-600 text-white font-bold shadow-lg':'text-slate-400 hover:text-white'}"><i class="fa-solid fa-house w-4"></i> Beranda & Status</button>
+                            <button onclick="State.activeMenu='profil';render();" class="w-full flex items-center gap-3 px-3.5 py-3 rounded-xl ${State.activeMenu==='profil'?'bg-blue-600 text-white font-bold shadow-lg':'text-slate-400 hover:text-white'}"><i class="fa-solid fa-school w-4"></i> Profil Sekolah</button>
+                            <button onclick="State.activeMenu='tanah';render();" class="w-full flex items-center gap-3 px-3.5 py-3 rounded-xl ${State.activeMenu==='tanah'?'bg-blue-600 text-white font-bold shadow-lg':'text-slate-400 hover:text-white'}"><i class="fa-solid fa-map w-4"></i> Tanah & Lahan</button>
+                            <button onclick="State.activeMenu='bangunan';render();" class="w-full flex items-center gap-3 px-3.5 py-3 rounded-xl ${State.activeMenu==='bangunan'?'bg-blue-600 text-white font-bold shadow-lg':'text-slate-400 hover:text-white'}"><i class="fa-solid fa-building w-4"></i> Gedung</button>
+                            <button onclick="State.activeMenu='ruangan';render();" class="w-full flex items-center gap-3 px-3.5 py-3 rounded-xl ${State.activeMenu==='ruangan'?'bg-blue-600 text-white font-bold shadow-lg':'text-slate-400 hover:text-white'}"><i class="fa-solid fa-door-open w-4"></i> Ruangan</button>
+                            <button onclick="State.activeMenu='inventaris';render();" class="w-full flex items-center gap-3 px-3.5 py-3 rounded-xl ${State.activeMenu==='inventaris'?'bg-blue-600 text-white font-bold shadow-lg':'text-slate-400 hover:text-white'}"><i class="fa-solid fa-boxes-stacked w-4"></i> Inventaris</button>
+                            <button onclick="State.activeMenu='utilitas';render();" class="w-full flex items-center gap-3 px-3.5 py-3 rounded-xl ${State.activeMenu==='utilitas'?'bg-blue-600 text-white font-bold shadow-lg':'text-slate-400 hover:text-white'}"><i class="fa-solid fa-bolt w-4"></i> Utilitas</button>
+                            <button onclick="State.activeMenu='dokumen';render();" class="w-full flex items-center gap-3 px-3.5 py-3 rounded-xl ${State.activeMenu==='dokumen'?'bg-blue-600 text-white font-bold shadow-lg':'text-slate-400 hover:text-white'}"><i class="fa-solid fa-file-arrow-up w-4"></i> Dokumen</button>
+                            <button onclick="State.activeMenu='usulan';render();" class="w-full flex items-center gap-3 px-3.5 py-3 rounded-xl ${State.activeMenu==='usulan'?'bg-indigo-600 text-white font-bold shadow-lg':'text-indigo-400 hover:text-white'}"><i class="fa-solid fa-file-pen w-4"></i> Usulan Sarpras</button>
+                            <button onclick="State.activeMenu='kirim-data';render();" class="w-full flex items-center gap-3 px-3.5 py-3 rounded-xl ${State.activeMenu==='kirim-data'?'bg-emerald-600 text-white font-bold shadow-lg':'text-emerald-400 hover:text-white'}"><i class="fa-solid fa-paper-plane w-4"></i> Kirim Data</button>
+                        </nav>
+                        <div class="p-3.5 border-t border-slate-800">
+                            <button onclick="State.role=null;render();" class="flex items-center gap-3 px-3.5 py-2.5 w-full rounded-xl text-rose-400 hover:bg-rose-500/10 font-bold text-xs"><i class="fa-solid fa-right-from-bracket w-4"></i> Keluar</button>
+                        </div>
+                    </aside>
+                    <main class="flex-1 flex flex-col min-w-0 overflow-hidden bg-slate-50">
+                        <header class="h-20 bg-white border-b border-slate-200 px-8 flex items-center justify-between shrink-0 shadow-sm no-print">
+                            <div>
+                                <h1 class="text-xl font-black text-slate-900 tracking-tight">${school.nama}</h1>
+                                <p class="text-xs text-blue-700 font-bold mt-0.5">NPSN: ${State.npsn} &bull; Kecamatan: ${school.kecamatan || '-'}</p>
+                            </div>
+                            <div class="flex items-center gap-3">
+                                <span class="px-3 py-1 text-[11px] font-black uppercase rounded-full border ${school.status==='Terverifikasi'?'bg-emerald-50 text-emerald-700 border-emerald-200':school.status==='Perlu Perbaikan'?'bg-rose-50 text-rose-700 border-rose-200':'bg-blue-50 text-blue-700 border-blue-200'}">${school.status}</span>
+                            </div>
+                        </header>
+                        <div class="flex-1 overflow-auto p-6 space-y-6">
+                            ${
+                                State.activeMenu === 'beranda' ? renderSchoolBeranda(school) :
+                                State.activeMenu === 'profil' ? renderSchoolProfil(school) :
+                                State.activeMenu === 'tanah' ? renderSchoolTanah(school) :
+                                State.activeMenu === 'bangunan' ? renderSchoolBangunan(school) :
+                                State.activeMenu === 'ruangan' ? renderSchoolRuangan(school) :
+                                State.activeMenu === 'inventaris' ? renderSchoolInventaris(school) :
+                                State.activeMenu === 'utilitas' ? renderSchoolUtilitas(school) :
+                                State.activeMenu === 'dokumen' ? renderSchoolDokumen(school) :
+                                State.activeMenu === 'usulan' ? renderSchoolUsulan(school) :
+                                renderSchoolKirim(school)
+                            }
+                        </div>
+                    </main>
+                </div>
+            `;
+        }
+
+        function renderSchoolBeranda(school) {
+            // Hitung kelengkapan pengisian data sekolah secara dinamis
+            let filledCount = 0;
+            let totalSections = 6;
+            if (school.kecamatan && school.kepalaSekolah) filledCount++;
+            if (school.tanah && school.tanah.length > 0) filledCount++;
+            if (school.bangunan && school.bangunan.length > 0) filledCount++;
+            if (school.ruangan && school.ruangan.length > 0) filledCount++;
+            if (school.inventaris && school.inventaris.length > 0) filledCount++;
+            if (school.dokumen && school.dokumen.length > 0) filledCount++;
+            
+            const pctFilled = Math.round((filledCount / totalSections) * 100);
+            const pctRemaining = 100 - pctFilled;
+
+            return `
+                <div class="max-w-3xl mx-auto space-y-6">
+                    ${school.catatanAdmin ? `
+                        <div class="p-5 bg-amber-50 border border-amber-200 rounded-2xl text-amber-900 flex items-start gap-3.5">
+                            <i class="fa-solid fa-triangle-exclamation text-xl mt-0.5 text-amber-600"></i>
+                            <div>
+                                <h4 class="font-black text-sm">Catatan Revisi dari Admin Dinas:</h4>
+                                <p class="mt-0.5 font-medium text-xs leading-relaxed">${school.catatanAdmin}</p>
+                            </div>
+                        </div>
+                    ` : ''}
+
+                    <div class="bg-white p-8 rounded-2xl shadow-xl border border-slate-200 flex flex-col md:flex-row items-center gap-6">
+                        <div class="w-20 h-20 bg-blue-50 rounded-2xl flex items-center justify-center border border-blue-100 shadow-inner shrink-0">
+                            <img src="https://i.ibb.co.com/wZd5Vn8h/Logo-Kabupaten-Kutai-Timur.png" alt="Logo" class="w-12 h-12 object-contain"/>
+                        </div>
+                        <div class="space-y-2 text-center md:text-left">
+                            <span class="px-2.5 py-0.5 bg-blue-50 text-blue-800 text-[10px] font-black rounded-full uppercase">Selamat Datang di SIPRASA Kutai Timur</span>
+                            <h2 class="text-2xl font-black text-slate-900">${school.nama}</h2>
+                            <p class="text-slate-600 font-medium text-xs leading-relaxed">Gunakan menu di sebelah kiri untuk melengkapi profil sekolah, tanah, bangunan, ruangan, inventaris, utilitas, serta mengajukan usulan sarpras baru dan mencetak dokumen usulan resmi ber-kop sekolah.</p>
+                        </div>
+                    </div>
+
+                    <!-- Diagram Pengisian Sarpras dengan Tampilan Bening / Gradasi -->
+                    <div class="bg-white p-6 rounded-2xl shadow-xl border border-slate-200 space-y-4">
+                        <div class="flex items-center justify-between">
+                            <div>
+                                <h4 class="text-xs font-black text-slate-800 uppercase tracking-wider">Statistik Kelengkapan Pengisian Instrumen Sarpras</h4>
+                                <p class="text-[11px] text-slate-500 mt-0.5">Persentase kelengkapan data instrumen sekolah Anda saat ini.</p>
+                            </div>
+                            <span class="px-3 py-1 bg-gradient-to-r from-blue-600 to-indigo-600 text-white font-black text-xs rounded-xl shadow">${pctFilled}% Selesai</span>
+                        </div>
+
+                        <div class="grid grid-cols-1 md:grid-cols-3 gap-5 items-center pt-2">
+                            <div class="flex flex-col items-center justify-center text-center space-y-2">
+                                <div class="relative w-32 h-32 rounded-full flex items-center justify-center shadow-inner transition-all hover:scale-105 duration-300" style="background: conic-gradient(#2563eb 0% ${pctFilled}%, #e2e8f0 ${pctFilled}% 100%);">
+                                    <div class="w-22 h-22 bg-white rounded-full flex flex-col items-center justify-center shadow-md">
+                                        <span class="text-[10px] font-bold text-slate-400 uppercase">Progress</span>
+                                        <span class="text-base font-black text-blue-950">${pctFilled}%</span>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <div class="md:col-span-2 space-y-3">
+                                <div>
+                                    <div class="flex justify-between text-xs font-bold mb-1">
+                                        <span class="text-slate-700">Modul Terisi (${filledCount} dari ${totalSections} Modul)</span>
+                                        <span class="text-blue-700">${pctFilled}%</span>
+                                    </div>
+                                    <div class="w-full h-3 bg-slate-100 rounded-full overflow-hidden p-0.5 shadow-inner">
+                                        <div class="h-full bg-gradient-to-r from-blue-600 via-indigo-600 to-emerald-500 rounded-full transition-all duration-500" style="width: ${pctFilled}%"></div>
+                                    </div>
+                                </div>
+
+                                <div class="grid grid-cols-2 gap-2.5 pt-1 text-xs">
+                                    <div class="p-3 bg-gradient-to-br from-blue-50/70 to-indigo-50/40 rounded-xl border border-blue-100 flex items-center justify-between">
+                                        <span class="font-bold text-slate-700">Profil & Tanah</span>
+                                        <span class="w-2.5 h-2.5 rounded-full ${school.kecamatan ? 'bg-emerald-500' : 'bg-amber-400'}"></span>
+                                    </div>
+                                    <div class="p-3 bg-gradient-to-br from-blue-50/70 to-indigo-50/40 rounded-xl border border-blue-100 flex items-center justify-between">
+                                        <span class="font-bold text-slate-700">Gedung & Ruangan</span>
+                                        <span class="w-2.5 h-2.5 rounded-full ${school.bangunan?.length > 0 ? 'bg-emerald-500' : 'bg-amber-400'}"></span>
+                                    </div>
+                                    <div class="p-3 bg-gradient-to-br from-blue-50/70 to-indigo-50/40 rounded-xl border border-blue-100 flex items-center justify-between">
+                                        <span class="font-bold text-slate-700">Inventaris Barang</span>
+                                        <span class="w-2.5 h-2.5 rounded-full ${school.inventaris?.length > 0 ? 'bg-emerald-500' : 'bg-amber-400'}"></span>
+                                    </div>
+                                    <div class="p-3 bg-gradient-to-br from-blue-50/70 to-indigo-50/40 rounded-xl border border-blue-100 flex items-center justify-between">
+                                        <span class="font-bold text-slate-700">Dokumen & Usulan</span>
+                                        <span class="w-2.5 h-2.5 rounded-full ${school.dokumen?.length > 0 ? 'bg-emerald-500' : 'bg-amber-400'}"></span>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            `;
+        }
+
+        function renderSchoolProfil(school) {
+            const lat = school.lat || '0.505295';
+            const lng = school.lng || '117.514038';
+
+            return `
+                <div class="bg-white p-8 rounded-2xl shadow-xl border border-slate-200 max-w-3xl mx-auto space-y-6 print-container">
+                    <div class="border-b-4 border-double border-slate-900 pb-5 hidden print:flex items-center justify-between mb-6">
+                        <div class="w-16 h-16 flex items-center justify-center shrink-0">
+                            <img src="https://i.ibb.co.com/wZd5Vn8h/Logo-Kabupaten-Kutai-Timur.png" alt="Logo Kutim" class="w-full h-full object-contain"/>
+                        </div>
+                        <div class="text-center flex-1 px-3">
+                            <h3 class="text-xs font-bold uppercase tracking-wider text-slate-700">PEMERINTAH KABUPATEN KUTAI TIMUR</h3>
+                            <h3 class="text-xs font-bold uppercase tracking-wider text-slate-700">DINAS PENDIDIKAN DAN KEBUDAYAAN</h3>
+                            <h2 class="text-lg font-black uppercase text-slate-900 mt-0.5">${school.nama}</h2>
+                            <p class="text-[11px] text-slate-600 mt-0.5">${school.alamat || 'Alamat Sekolah &bull; Kabupaten Kutai Timur'}</p>
+                            <p class="text-[11px] font-mono text-slate-600">NPSN: ${school.npsn}</p>
+                        </div>
+                        <div class="w-16"></div>
+                    </div>
+
+                    <div class="flex justify-between items-center border-b pb-4">
+                        <h3 class="text-xl font-black text-slate-900">Data Profil Sekolah</h3>
+                        <div class="flex items-center gap-2 no-print">
+                            <button onclick="window.print()" class="px-3.5 py-1.5 bg-slate-100 text-slate-700 font-bold rounded-xl text-xs hover:bg-slate-200"><i class="fa-solid fa-print mr-1.5"></i> Cetak</button>
+                            ${isProfileEditMode ? `
+                                <button onclick="isProfileEditMode=false;render();" class="px-3.5 py-1.5 bg-slate-200 text-slate-700 font-bold rounded-xl text-xs">Batal</button>
+                                <button onclick="saveSchoolProfile('${school.npsn}')" class="px-4 py-1.5 bg-blue-900 text-white font-bold rounded-xl text-xs shadow-md">Simpan</button>
+                            ` : `
+                                <button onclick="isProfileEditMode=true;render();" class="px-3.5 py-1.5 bg-amber-50 text-amber-800 font-bold rounded-xl text-xs border border-amber-200 hover:bg-amber-100"><i class="fa-solid fa-pen mr-1.5"></i> Edit Profil</button>
+                            `}
+                        </div>
+                    </div>
+
+                    ${isProfileEditMode ? `
+                        <div class="space-y-4 text-xs">
+                            <div>
+                                <label class="block text-[10px] font-bold text-slate-600 uppercase mb-1">Nama Sekolah</label>
+                                <input type="text" id="sch-nama" value="${school.nama || ''}" class="w-full px-3.5 py-2.5 border rounded-xl font-medium bg-slate-50"/>
+                            </div>
+                            <div class="grid grid-cols-1 md:grid-cols-2 gap-3">
+                                <div>
+                                    <label class="block text-[10px] font-bold text-slate-600 uppercase mb-1">NPSN</label>
+                                    <input type="text" value="${school.npsn}" disabled class="w-full px-3.5 py-2.5 border rounded-xl font-mono font-bold bg-slate-100 text-slate-500"/>
+                                </div>
+                                <div>
+                                    <label class="block text-[10px] font-bold text-slate-600 uppercase mb-1">Kecamatan</label>
+                                    <input type="text" id="sch-kecamatan" value="${school.kecamatan || ''}" class="w-full px-3.5 py-2.5 border rounded-xl font-medium bg-slate-50"/>
+                                </div>
+                            </div>
+                            <div class="grid grid-cols-1 md:grid-cols-2 gap-3">
+                                <div>
+                                    <label class="block text-[10px] font-bold text-slate-600 uppercase mb-1">Nama Kepala Sekolah</label>
+                                    <input type="text" id="sch-kepsek" value="${school.kepalaSekolah || ''}" class="w-full px-3.5 py-2.5 border rounded-xl font-medium bg-slate-50"/>
+                                </div>
+                                <div>
+                                    <label class="block text-[10px] font-bold text-slate-600 uppercase mb-1">NIP Kepala Sekolah</label>
+                                    <input type="text" id="sch-nip" value="${school.nipKepsek || ''}" class="w-full px-3.5 py-2.5 border rounded-xl font-medium bg-slate-50"/>
+                                </div>
+                            </div>
+                            <div>
+                                <label class="block text-[10px] font-bold text-slate-600 uppercase mb-1">Alamat Lengkap</label>
+                                <input type="text" id="sch-alamat" value="${school.alamat || ''}" class="w-full px-3.5 py-2.5 border rounded-xl font-medium bg-slate-50"/>
+                            </div>
+                            <div class="grid grid-cols-1 md:grid-cols-2 gap-3">
+                                <div>
+                                    <label class="block text-[10px] font-bold text-slate-600 uppercase mb-1">Jumlah Siswa</label>
+                                    <input type="number" id="sch-siswa" value="${school.jumlahSiswa || 0}" class="w-full px-3.5 py-2.5 border rounded-xl font-medium bg-slate-50"/>
+                                </div>
+                                <div>
+                                    <label class="block text-[10px] font-bold text-slate-600 uppercase mb-1">Jumlah Guru</label>
+                                    <input type="number" id="sch-guru" value="${school.jumlahGuru || 0}" class="w-full px-3.5 py-2.5 border rounded-xl font-medium bg-slate-50"/>
+                                </div>
+                            </div>
+
+                            <div class="space-y-3 pt-3 border-t">
+                                <label class="block text-[10px] font-bold text-slate-600 uppercase">Pencarian & Titik Koordinat Lokasi Sekolah</label>
+                                <div class="flex gap-2">
+                                    <input type="text" id="location-search-input" placeholder="Ketik nama sekolah/lokasi/kota..." class="flex-1 px-3.5 py-2.5 border rounded-xl font-medium bg-slate-50 text-xs"/>
+                                    <button type="button" onclick="searchLocationMap()" class="px-4 py-2.5 bg-slate-900 text-white font-bold rounded-xl text-xs hover:bg-slate-800"><i class="fa-solid fa-search mr-1"></i> Cari</button>
+                                </div>
+                                <div class="grid grid-cols-2 gap-3">
+                                    <div>
+                                        <label class="block text-[9px] font-bold text-slate-500 uppercase mb-0.5">Latitude</label>
+                                        <input type="text" id="sch-lat" value="${lat}" class="w-full px-3 py-2 border rounded-xl font-mono text-xs bg-slate-50"/>
+                                    </div>
+                                    <div>
+                                        <label class="block text-[9px] font-bold text-slate-500 uppercase mb-0.5">Longitude</label>
+                                        <input type="text" id="sch-lng" value="${lng}" class="w-full px-3 py-2 border rounded-xl font-mono text-xs bg-slate-50"/>
+                                    </div>
+                                </div>
+                                <button type="button" onclick="getCurrentDeviceGPS()" class="w-full py-2.5 bg-emerald-700 text-white font-bold rounded-xl text-xs hover:bg-emerald-800 flex items-center justify-center gap-2"><i class="fa-solid fa-location-crosshairs"></i> Gunakan GPS Perangkat Saat Ini</button>
+                                
+                                <div class="space-y-1 pt-2">
+                                    <span class="text-[10px] font-bold text-slate-500 uppercase">Pratinjau Peta Interaktif (Bisa Zoom In/Out)</span>
+                                    <div class="w-full h-48 rounded-xl overflow-hidden border border-slate-200 shadow-inner bg-slate-100 relative">
+                                        <iframe id="map-preview-frame" width="100%" height="100%" frameborder="0" scrolling="no" marginheight="0" marginwidth="0" src="https://maps.google.com/maps?q=${lat},${lng}&z=15&output=embed"></iframe>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    ` : `
+                        <div class="space-y-4 text-xs">
+                            <div class="grid grid-cols-1 md:grid-cols-2 gap-4 pb-3 border-b">
+                                <div><span class="text-[10px] font-extrabold text-slate-400 uppercase tracking-wider block">Nama Sekolah</span><p class="font-black text-slate-900 text-sm mt-0.5">${school.nama}</p></div>
+                                <div><span class="text-[10px] font-extrabold text-slate-400 uppercase tracking-wider block">NPSN</span><p class="font-mono font-bold text-slate-900 text-sm mt-0.5">${school.npsn}</p></div>
+                            </div>
+                            <div class="grid grid-cols-1 md:grid-cols-2 gap-4 pb-3 border-b">
+                                <div><span class="text-[10px] font-extrabold text-slate-400 uppercase tracking-wider block">Kecamatan</span><p class="font-bold text-slate-900 mt-0.5">${school.kecamatan || '-'}</p></div>
+                                <div><span class="text-[10px] font-extrabold text-slate-400 uppercase tracking-wider block">Alamat Lengkap</span><p class="font-bold text-slate-900 mt-0.5">${school.alamat || '-'}</p></div>
+                            </div>
+                            <div class="grid grid-cols-1 md:grid-cols-2 gap-4 pb-3 border-b">
+                                <div><span class="text-[10px] font-extrabold text-slate-400 uppercase tracking-wider block">Kepala Sekolah</span><p class="font-bold text-slate-900 mt-0.5">${school.kepalaSekolah || '-'}</p></div>
+                                <div><span class="text-[10px] font-extrabold text-slate-400 uppercase tracking-wider block">NIP Kepala Sekolah</span><p class="font-mono font-bold text-slate-900 mt-0.5">${school.nipKepsek || '-'}</p></div>
+                            </div>
+                            <div class="grid grid-cols-1 md:grid-cols-2 gap-4 pb-3 border-b">
+                                <div><span class="text-[10px] font-extrabold text-slate-400 uppercase tracking-wider block">Jumlah Siswa</span><p class="font-bold text-slate-900 mt-0.5">${school.jumlahSiswa || 0}</p></div>
+                                <div><span class="text-[10px] font-extrabold text-slate-400 uppercase tracking-wider block">Jumlah Guru</span><p class="font-bold text-slate-900 mt-0.5">${school.jumlahGuru || 0}</p></div>
+                            </div>
+                            <div class="space-y-2 pt-2">
+                                <span class="text-[10px] font-extrabold text-slate-400 uppercase tracking-wider block">Titik Peta & Koordinat Lokasi</span>
+                                <div class="text-xs text-slate-600 font-mono">Latitude: ${lat}, Longitude: ${lng}</div>
+                                <div class="w-full h-48 rounded-xl overflow-hidden border border-slate-200 shadow-inner bg-slate-100">
+                                    <iframe width="100%" height="100%" frameborder="0" scrolling="no" marginheight="0" marginwidth="0" src="https://maps.google.com/maps?q=${lat},${lng}&z=15&output=embed"></iframe>
+                                </div>
+                            </div>
+                        </div>
+                    `}
+                </div>
+            `;
+        }
+
+        function searchLocationMap() {
+            const query = document.getElementById('location-search-input').value.trim();
+            if(!query) return;
+            let lat = '0.505295';
+            let lng = '117.514038';
+            const qLower = query.toLowerCase();
+            if(qLower.includes('sangatta')) { lat = '0.493984'; lng = '117.546265'; }
+            else if(qLower.includes('bengalon')) { lat = '0.8521'; lng = '117.8214'; }
+            else if(qLower.includes('sangkulirang')) { lat = '1.1245'; lng = '118.0123'; }
+            else if(qLower.includes('samarinda')) { lat = '-0.5021'; lng = '117.1537'; }
+            else if(qLower.includes('balikpapan')) { lat = '-1.2379'; lng = '116.8529'; }
+
+            document.getElementById('sch-lat').value = lat;
+            document.getElementById('sch-lng').value = lng;
+            document.getElementById('map-preview-frame').src = `https://maps.google.com/maps?q=${lat},${lng}&z=15&output=embed`;
+            showToast("Lokasi berhasil ditemukan di peta.", "success");
+        }
+        window.searchLocationMap = searchLocationMap;
+
+        function getCurrentDeviceGPS() {
+            if (navigator.geolocation) {
+                navigator.geolocation.getCurrentPosition((position) => {
+                    const lat = position.coords.latitude;
+                    const lng = position.coords.longitude;
+                    document.getElementById('sch-lat').value = lat;
+                    document.getElementById('sch-lng').value = lng;
+                    document.getElementById('map-preview-frame').src = `https://maps.google.com/maps?q=${lat},${lng}&z=15&output=embed`;
+                    showToast("GPS berhasil mendeteksi koordinat Anda.", "success");
+                }, () => {
+                    showToast("Gagal mendeteksi GPS. Perangkat tidak mengizinkan.", "error");
+                });
+            } else {
+                showToast("Geolokasi tidak didukung oleh browser ini.", "error");
+            }
+        }
+        window.getCurrentDeviceGPS = getCurrentDeviceGPS;
+
+        function saveSchoolProfile(npsn) {
+            const school = State.schools.find(s => s.npsn === npsn);
+            if(school) {
+                school.nama = document.getElementById('sch-nama').value;
+                school.kecamatan = document.getElementById('sch-kecamatan').value;
+                school.kepalaSekolah = document.getElementById('sch-kepsek').value;
+                school.nipKepsek = document.getElementById('sch-nip').value;
+                school.alamat = document.getElementById('sch-alamat').value;
+                school.jumlahSiswa = parseInt(document.getElementById('sch-siswa').value) || 0;
+                school.jumlahGuru = parseInt(document.getElementById('sch-guru').value) || 0;
+                school.lat = document.getElementById('sch-lat').value;
+                school.lng = document.getElementById('sch-lng').value;
+                isProfileEditMode = false;
+                showToast("Profil sekolah berhasil disimpan.", "success");
+                render();
+            }
+        }
+
+        function renderSchoolTanah(school) {
+            const t = school.tanah?.[0] || { statusKepemilikan: 'Milik Pemerintah', luasTotal: 0, luasTerbangun: 0, noSertifikat: '' };
+            return `
+                <div class="bg-white p-8 rounded-2xl shadow-xl border border-slate-200 max-w-3xl mx-auto space-y-5 text-xs">
+                    <h3 class="text-xl font-black text-slate-900">Data Tanah & Lahan Sekolah</h3>
+                    <div class="space-y-4">
+                        <div>
+                            <label class="block text-[10px] font-bold text-slate-600 uppercase mb-1">Status Kepemilikan Tanah</label>
+                            <select id="tanah-status" class="w-full px-3.5 py-2.5 border rounded-xl font-medium bg-slate-50">
+                                <option value="Milik Pemerintah" ${t.statusKepemilikan==='Milik Pemerintah'?'selected':''}>Milik Pemerintah (Pemkab Kutai Timur)</option>
+                                <option value="Hak Pakai" ${t.statusKepemilikan==='Hak Pakai'?'selected':''}>Hak Pakai</option>
+                                <option value="Sewa / Hibah" ${t.statusKepemilikan==='Sewa / Hibah'?'selected':''}>Sewa / Hibah</option>
+                            </select>
+                        </div>
+                        <div class="grid grid-cols-1 md:grid-cols-2 gap-3">
+                            <div>
+                                <label class="block text-[10px] font-bold text-slate-600 uppercase mb-1">Luas Total Lahan (m²)</label>
+                                <input type="number" id="tanah-luas" value="${t.luasTotal}" class="w-full px-3.5 py-2.5 border rounded-xl font-medium bg-slate-50"/>
+                            </div>
+                            <div>
+                                <label class="block text-[10px] font-bold text-slate-600 uppercase mb-1">Luas Lahan Terbangun (m²)</label>
+                                <input type="number" id="tanah-terbangun" value="${t.luasTerbangun}" class="w-full px-3.5 py-2.5 border rounded-xl font-medium bg-slate-50"/>
+                            </div>
+                        </div>
+                        <div>
+                            <label class="block text-[10px] font-bold text-slate-600 uppercase mb-1">Nomor Sertifikat Tanah</label>
+                            <input type="text" id="tanah-sertifikat" value="${t.noSertifikat}" placeholder="Contoh: CERT-001" class="w-full px-3.5 py-2.5 border rounded-xl font-medium bg-slate-50"/>
+                        </div>
+                        <button onclick="saveSchoolTanah('${school.npsn}')" class="px-6 py-3 bg-blue-900 text-white font-black rounded-xl shadow-lg hover:bg-blue-800">Simpan Data Tanah</button>
+                    </div>
+                </div>
+            `;
+        }
+
+        function saveSchoolTanah(npsn) {
+            const school = State.schools.find(s => s.npsn === npsn);
+            if(school) {
+                school.tanah = [{
+                    id: '1',
+                    statusKepemilikan: document.getElementById('tanah-status').value,
+                    luasTotal: parseFloat(document.getElementById('tanah-luas').value) || 0,
+                    luasTerbangun: parseFloat(document.getElementById('tanah-terbangun').value) || 0,
+                    noSertifikat: document.getElementById('tanah-sertifikat').value
+                }];
+                showToast("Data tanah berhasil disimpan.", "success");
+            }
+        }
+
+        function renderSchoolBangunan(school) {
+            return `
+                <div class="bg-white p-8 rounded-2xl shadow-xl border border-slate-200 max-w-4xl mx-auto space-y-5 text-xs">
+                    <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+                        <h3 class="text-xl font-black text-slate-900">Data Gedung & Bangunan</h3>
+                        <div class="flex items-center gap-2">
+                            <button type="button" onclick="document.getElementById('siteplan-upload-input').click()" class="px-3.5 py-2 bg-indigo-50 text-indigo-700 font-bold text-xs rounded-xl border border-indigo-200 hover:bg-indigo-100"><i class="fa-solid fa-map mr-1.5"></i> Unggah Site Plan</button>
+                            <input type="file" id="siteplan-upload-input" class="hidden" accept=".pdf,.jpg,.jpeg,.png" onchange="handleSitePlanUpload(event, '${school.npsn}')"/>
+
+                            <button type="button" onclick="document.getElementById('kondisi-upload-input').click()" class="px-3.5 py-2 bg-emerald-50 text-emerald-700 font-bold text-xs rounded-xl border border-emerald-200 hover:bg-emerald-100"><i class="fa-solid fa-camera mr-1.5"></i> Kondisi Asli</button>
+                            <input type="file" id="kondisi-upload-input" class="hidden" accept=".pdf,.jpg,.jpeg,.png" onchange="handleKondisiUpload(event, '${school.npsn}')"/>
+
+                            <button type="button" onclick="openBangunanModal('${school.npsn}')" class="px-4 py-2 bg-blue-900 text-white font-bold text-xs rounded-xl shadow-lg hover:bg-blue-800 transition-all cursor-pointer"><i class="fa-solid fa-plus mr-1.5"></i> Tambah Gedung</button>
+                        </div>
+                    </div>
+
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-4 p-4 bg-slate-50 rounded-xl border">
+                        <div class="space-y-1.5">
+                            <div class="flex justify-between items-center">
+                                <span class="font-bold text-slate-700 block text-[11px]">Pratinjau Site Plan:</span>
+                                ${school.sitePlanName ? `<span class="text-[10px] font-bold text-indigo-700 truncate max-w-[180px]">${school.sitePlanName}</span>` : ''}
+                            </div>
+                            <div class="h-36 rounded-lg overflow-hidden border bg-white flex items-center justify-center relative shadow-sm">
+                                ${school.sitePlanUrl ? (
+                                    school.sitePlanUrl.startsWith('data:image/') || school.sitePlanUrl.match(/\.(jpeg|jpg|png|gif)$/i) ?
+                                    `<img src="${school.sitePlanUrl}" class="w-full h-full object-cover cursor-pointer" onclick="openViewFile('Site Plan Gedung', '${school.sitePlanUrl}', 'Site Plan')"/>` :
+                                    `<div class="flex flex-col items-center justify-center p-4 text-center cursor-pointer w-full h-full hover:bg-slate-50" onclick="openViewFile('Site Plan Gedung', '${school.sitePlanUrl}', 'Site Plan')"><i class="fa-solid fa-file-pdf text-3xl text-rose-600 mb-1"></i><span class="font-bold text-slate-800 text-[11px]">Dokumen PDF Terunggah</span><span class="text-[10px] text-blue-600 underline mt-0.5">Klik untuk Cek Berkas</span></div>`
+                                ) : `
+                                    <div onclick="document.getElementById('siteplan-upload-input').click()" class="flex flex-col items-center justify-center text-slate-400 p-2 text-center w-full h-full hover:bg-slate-50 cursor-pointer">
+                                        <i class="fa-solid fa-map-location-dot text-2xl text-indigo-500 mb-1"></i>
+                                        <span class="text-[10px] font-bold text-slate-600">Klik untuk unggah Site Plan</span>
+                                    </div>
+                                `}
+                            </div>
+                        </div>
+                        <div class="space-y-1.5">
+                            <div class="flex justify-between items-center">
+                                <span class="font-bold text-slate-700 block text-[11px]">Pratinjau Kondisi Asli:</span>
+                                ${school.kondisiAsliName ? `<span class="text-[10px] font-bold text-emerald-700 truncate max-w-[180px]">${school.kondisiAsliName}</span>` : ''}
+                            </div>
+                            <div class="h-36 rounded-lg overflow-hidden border bg-white flex items-center justify-center relative shadow-sm">
+                                ${school.kondisiAsliUrl ? (
+                                    school.kondisiAsliUrl.startsWith('data:image/') || school.kondisiAsliUrl.match(/\.(jpeg|jpg|png|gif)$/i) ?
+                                    `<img src="${school.kondisiAsliUrl}" class="w-full h-full object-cover cursor-pointer" onclick="openViewFile('Kondisi Asli Gedung', '${school.kondisiAsliUrl}', 'Kondisi Asli')"/>` :
+                                    `<div class="flex flex-col items-center justify-center p-4 text-center cursor-pointer w-full h-full hover:bg-slate-50" onclick="openViewFile('Kondisi Asli Gedung', '${school.kondisiAsliUrl}', 'Kondisi Asli')"><i class="fa-solid fa-file-pdf text-3xl text-rose-600 mb-1"></i><span class="font-bold text-slate-800 text-[11px]">Dokumen PDF Terunggah</span><span class="text-[10px] text-blue-600 underline mt-0.5">Klik untuk Cek Berkas</span></div>`
+                                ) : `
+                                    <div onclick="document.getElementById('kondisi-upload-input').click()" class="flex flex-col items-center justify-center text-slate-400 p-2 text-center w-full h-full hover:bg-slate-50 cursor-pointer">
+                                        <i class="fa-solid fa-camera-retro text-2xl text-emerald-500 mb-1"></i>
+                                        <span class="text-[10px] font-bold text-slate-600">Klik untuk unggah Kondisi Asli</span>
+                                    </div>
+                                `}
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="overflow-x-auto">
+                        <table class="w-full text-left text-xs whitespace-nowrap">
+                            <thead class="bg-slate-50 text-slate-600 border-b font-black uppercase text-[10px]">
+                                <tr>
+                                    <th class="px-5 py-3">Nama Gedung</th>
+                                    <th class="px-5 py-3">Kondisi</th>
+                                    <th class="px-5 py-3">Tahun Bangun</th>
+                                    <th class="px-5 py-3">Lantai</th>
+                                    <th class="px-5 py-3">Luas (m²)</th>
+                                    <th class="px-5 py-3 text-right">Aksi</th>
+                                </tr>
+                            </thead>
+                            <tbody class="divide-y divide-slate-100">
+                                ${(school.bangunan || []).map((b, idx) => `
+                                    <tr>
+                                        <td class="px-5 py-3.5 font-black">${b.namaBangunan}</td>
+                                        <td class="px-5 py-3.5"><span class="px-2.5 py-0.5 rounded-full text-[10px] font-bold ${b.kondisi==='Baik'?'bg-emerald-50 text-emerald-700':'bg-amber-50 text-amber-700'}">${b.kondisi}</span></td>
+                                        <td class="px-5 py-3.5">${b.tahunBangun}</td>
+                                        <td class="px-5 py-3.5">${b.jumlahLantai}</td>
+                                        <td class="px-5 py-3.5">${b.luasBangunan} m²</td>
+                                        <td class="px-5 py-3.5 text-right">
+                                            <button onclick="editBangunan('${school.npsn}', ${idx})" class="text-blue-600 hover:text-blue-800 font-bold mr-2.5"><i class="fa-solid fa-pen-to-square"></i></button>
+                                            <button onclick="deleteBangunan('${school.npsn}', ${idx})" class="text-rose-600 hover:text-rose-800 font-bold"><i class="fa-solid fa-trash"></i></button>
+                                        </td>
+                                    </tr>
+                                `).join('') || '<tr><td colspan="6" class="text-center py-6 text-slate-400 font-medium">Belum ada data gedung. Silakan tambahkan data.</td></tr>'}
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+
+                <!-- Modal Media Preview -->
+                <div id="modal-media-preview" class="fixed inset-0 z-50 hidden bg-slate-950/70 backdrop-blur-sm flex items-center justify-center p-4">
+                    <div class="bg-white rounded-2xl max-w-lg w-full p-6 shadow-2xl space-y-4 animate-fade-in text-xs">
+                        <div class="flex justify-between items-center border-b pb-3">
+                            <h3 id="preview-title" class="text-base font-black text-slate-900">Pratinjau Berkas</h3>
+                            <button onclick="closeMediaPreview()" class="text-slate-400 hover:text-slate-600 text-base font-bold"><i class="fa-solid fa-xmark"></i></button>
+                        </div>
+                        <div class="w-full h-64 rounded-xl overflow-hidden border bg-slate-100 flex items-center justify-center">
+                            <img id="preview-img-tag" src="" class="w-full h-full object-contain"/>
+                        </div>
+                        <div class="flex justify-end pt-2">
+                            <button type="button" onclick="closeMediaPreview()" class="px-5 py-2.5 bg-slate-200 font-bold text-slate-700 rounded-xl">Tutup</button>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Modal Tambah / Edit Gedung -->
+                <div id="modal-bangunan" class="fixed inset-0 z-50 hidden bg-slate-950/60 backdrop-blur-sm flex items-center justify-center p-4">
+                    <div class="bg-white rounded-2xl max-w-sm w-full p-6 shadow-2xl space-y-4 animate-fade-in text-xs">
+                        <div class="flex justify-between items-center border-b pb-3">
+                            <h3 id="modal-bangunan-title" class="text-base font-black text-slate-900">Tambah Data Gedung</h3>
+                            <button onclick="closeBangunanModal()" class="text-slate-400 hover:text-slate-600 text-base font-bold"><i class="fa-solid fa-xmark"></i></button>
+                        </div>
+                        <form id="form-bangunan" onsubmit="saveBangunanForm(event)" class="space-y-3.5">
+                            <input type="hidden" id="bangunan-npsn" />
+                            <input type="hidden" id="bangunan-idx" value="-1" />
+                            <div>
+                                <label class="block text-[10px] font-bold text-slate-600 uppercase mb-1">Nama Gedung / Blok <span class="text-rose-500">*</span></label>
+                                <input type="text" id="b-nama" placeholder="Contoh: Gedung Kelas Utama" required class="w-full px-3.5 py-2.5 border rounded-xl font-medium bg-slate-50"/>
+                            </div>
+                            <div>
+                                <label class="block text-[10px] font-bold text-slate-600 uppercase mb-1">Kondisi Fisik / Kerusakan <span class="text-rose-500">*</span></label>
+                                <select id="b-kondisi" class="w-full px-3.5 py-2.5 border rounded-xl font-medium bg-slate-50">
+                                    <option value="Baik">Baik (0 - 20% Rusak)</option>
+                                    <option value="Rusak Ringan">Rusak Ringan (21 - 30% Rusak)</option>
+                                    <option value="Rusak Sedang">Rusak Sedang (31 - 45% Rusak)</option>
+                                    <option value="Rusak Berat">Rusak Berat (46 - 65% Rusak)</option>
+                                    <option value="Rusak Total">Rusak Total (>65% Rusak)</option>
+                                </select>
+                            </div>
+                            <div class="grid grid-cols-2 gap-3">
+                                <div>
+                                    <label class="block text-[10px] font-bold text-slate-600 uppercase mb-1">Tahun Bangun/Rehab</label>
+                                    <input type="number" id="b-tahun" placeholder="2020" required class="w-full px-3.5 py-2.5 border rounded-xl font-medium bg-slate-50"/>
+                                </div>
+                                <div>
+                                    <label class="block text-[10px] font-bold text-slate-600 uppercase mb-1">Jumlah Lantai</label>
+                                    <input type="number" id="b-lantai" placeholder="1" required class="w-full px-3.5 py-2.5 border rounded-xl font-medium bg-slate-50"/>
+                                </div>
+                            </div>
+                            <div>
+                                <label class="block text-[10px] font-bold text-slate-600 uppercase mb-1">Luas Tapak (m²)</label>
+                                <input type="number" id="b-luas" placeholder="100" required class="w-full px-3.5 py-2.5 border rounded-xl font-medium bg-slate-50"/>
+                            </div>
+                            <div class="flex justify-end gap-2.5 pt-2">
+                                <button type="button" onclick="closeBangunanModal()" class="px-4 py-2.5 bg-slate-100 font-bold text-slate-700 rounded-xl">Batal</button>
+                                <button type="submit" class="px-5 py-2.5 bg-blue-900 text-white font-black rounded-xl shadow-lg hover:bg-blue-800">Simpan Gedung</button>
+                            </div>
+                        </form>
+                    </div>
+                </div>
+            `;
+        }
+
+        function handleSitePlanUpload(e, npsn) {
+            const file = e.target.files[0];
+            if(!file) return;
+            const reader = new FileReader();
+            reader.onload = function(evt) {
+                const school = State.schools.find(s => s.npsn === npsn);
+                if(school) {
+                    school.sitePlanUrl = evt.target.result;
+                    school.sitePlanName = file.name;
+                    showToast("Site Plan berhasil diunggah.", "success");
+                    render();
+                }
+            };
+            reader.readAsDataURL(file);
+        }
+        window.handleSitePlanUpload = handleSitePlanUpload;
+
+        function handleKondisiUpload(e, npsn) {
+            const file = e.target.files[0];
+            if(!file) return;
+            const reader = new FileReader();
+            reader.onload = function(evt) {
+                const school = State.schools.find(s => s.npsn === npsn);
+                if(school) {
+                    school.kondisiAsliUrl = evt.target.result;
+                    school.kondisiAsliName = file.name;
+                    showToast("Foto kondisi asli berhasil diunggah.", "success");
+                    render();
+                }
+            };
+            reader.readAsDataURL(file);
+        }
+        window.handleKondisiUpload = handleKondisiUpload;
+
+        function openMediaPreview(url, title) {
+            openViewFile(title, url, 'Pratinjau');
+        }
+        window.openMediaPreview = openMediaPreview;
+
+        function closeMediaPreview() {
+            closeViewFile();
+        }
+        window.closeMediaPreview = closeMediaPreview;
+
+        function renderSchoolRuangan(school) {
+            return `
+                <div class="bg-white p-8 rounded-2xl shadow-xl border border-slate-200 max-w-4xl mx-auto space-y-5 text-xs">
+                    <div class="flex justify-between items-center">
+                        <h3 class="text-xl font-black text-slate-900">Data Ruangan & Kelas</h3>
+                        <button type="button" onclick="openRuanganModal('${school.npsn}')" class="px-4 py-2 bg-blue-900 text-white font-bold text-xs rounded-xl shadow-lg hover:bg-blue-800 transition-all cursor-pointer"><i class="fa-solid fa-plus mr-1.5"></i> Tambah Ruangan</button>
+                    </div>
+                    <div class="overflow-x-auto">
+                        <table class="w-full text-left text-xs whitespace-nowrap">
+                            <thead class="bg-slate-50 text-slate-600 border-b font-black uppercase text-[10px]">
+                                <tr>
+                                    <th class="px-5 py-3">Kategori Ruang</th>
+                                    <th class="px-5 py-3">Kondisi</th>
+                                    <th class="px-5 py-3">Luas (m²)</th>
+                                    <th class="px-5 py-3 text-right">Aksi</th>
+                                </tr>
+                            </thead>
+                            <tbody class="divide-y divide-slate-100">
+                                ${(school.ruangan || []).map((r, idx) => `
+                                    <tr>
+                                        <td class="px-5 py-3.5 font-black">${r.kategoriRuang}</td>
+                                        <td class="px-5 py-3.5"><span class="px-2.5 py-0.5 rounded-full text-[10px] font-bold ${r.kondisi==='Baik'?'bg-emerald-50 text-emerald-700':'bg-amber-50 text-amber-700'}">${r.kondisi}</span></td>
+                                        <td class="px-5 py-3.5">${r.luas} m²</td>
+                                        <td class="px-5 py-3.5 text-right">
+                                            <button onclick="editRuangan('${school.npsn}', ${idx})" class="text-blue-600 hover:text-blue-800 font-bold mr-2.5"><i class="fa-solid fa-pen-to-square"></i></button>
+                                            <button onclick="deleteRuangan('${school.npsn}', ${idx})" class="text-rose-600 hover:text-rose-800 font-bold"><i class="fa-solid fa-trash"></i></button>
+                                        </td>
+                                    </tr>
+                                `).join('') || '<tr><td colspan="4" class="text-center py-6 text-slate-400 font-medium">Belum ada data ruangan. Silakan tambahkan data.</td></tr>'}
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+
+                <!-- Modal Tambah / Edit Ruangan -->
+                <div id="modal-ruangan" class="fixed inset-0 z-50 hidden bg-slate-950/60 backdrop-blur-sm flex items-center justify-center p-4">
+                    <div class="bg-white rounded-2xl max-w-sm w-full p-6 shadow-2xl space-y-4 animate-fade-in text-xs">
+                        <div class="flex justify-between items-center border-b pb-3">
+                            <h3 id="modal-ruangan-title" class="text-base font-black text-slate-900">Tambah Data Ruangan</h3>
+                            <button onclick="closeRuanganModal()" class="text-slate-400 hover:text-slate-600 text-base font-bold"><i class="fa-solid fa-xmark"></i></button>
+                        </div>
+                        <form id="form-ruangan" onsubmit="saveRuanganForm(event)" class="space-y-3.5">
+                            <input type="hidden" id="ruangan-npsn" />
+                            <input type="hidden" id="ruangan-idx" value="-1" />
+                            <div>
+                                <label class="block text-[10px] font-bold text-slate-600 uppercase mb-1">Kategori Ruang <span class="text-rose-500">*</span></label>
+                                <select id="r-kategori" class="w-full px-3.5 py-2.5 border rounded-xl font-medium bg-slate-50">
+                                    <option value="Ruang Kelas">Ruang Kelas</option>
+                                    <option value="Ruang Perpustakaan">Ruang Perpustakaan</option>
+                                    <option value="Ruang Guru">Ruang Guru</option>
+                                    <option value="Ruang Kepala Sekolah">Ruang Kepala Sekolah</option>
+                                    <option value="Ruang UKS">Ruang UKS</option>
+                                    <option value="Toilet / Sanitasi">Toilet / Sanitasi</option>
+                                </select>
+                            </div>
+                            <div>
+                                <label class="block text-[10px] font-bold text-slate-600 uppercase mb-1">Kondisi Fisik <span class="text-rose-500">*</span></label>
+                                <select id="r-kondisi" class="w-full px-3.5 py-2.5 border rounded-xl font-medium bg-slate-50">
+                                    <option value="Baik">Baik</option>
+                                    <option value="Rusak Ringan">Rusak Ringan</option>
+                                    <option value="Rusak Sedang">Rusak Sedang</option>
+                                    <option value="Rusak Berat">Rusak Berat</option>
+                                </select>
+                            </div>
+                            <div>
+                                <label class="block text-[10px] font-bold text-slate-600 uppercase mb-1">Luas Ruangan (m²)</label>
+                                <input type="number" id="r-luas" value="64" required class="w-full px-3.5 py-2.5 border rounded-xl font-medium bg-slate-50"/>
+                            </div>
+                            <div class="flex justify-end gap-2.5 pt-2">
+                                <button type="button" onclick="closeRuanganModal()" class="px-4 py-2.5 bg-slate-100 font-bold text-slate-700 rounded-xl">Batal</button>
+                                <button type="submit" class="px-5 py-2.5 bg-blue-900 text-white font-black rounded-xl shadow-lg hover:bg-blue-800">Simpan Ruangan</button>
+                            </div>
+                        </form>
+                    </div>
+                </div>
+            `;
+        }
+
+        function renderSchoolInventaris(school) {
+            return `
+                <div class="bg-white p-8 rounded-2xl shadow-xl border border-slate-200 max-w-4xl mx-auto space-y-5 text-xs">
+                    <div class="flex justify-between items-center">
+                        <div>
+                            <h3 class="text-xl font-black text-slate-900">Inventaris Barang & Prasarana</h3>
+                            <p class="text-[11px] text-slate-500 mt-0.5">Inventaris terhubung otomatis dengan data Gedung & Bangunan yang telah diinput.</p>
+                        </div>
+                        <button type="button" onclick="openInventarisModal('${school.npsn}')" class="px-4 py-2 bg-blue-900 text-white font-bold text-xs rounded-xl shadow-lg hover:bg-blue-800 transition-all cursor-pointer"><i class="fa-solid fa-plus mr-1.5"></i> Tambah Barang</button>
+                    </div>
+                    <div class="overflow-x-auto">
+                        <table class="w-full text-left text-xs whitespace-nowrap">
+                            <thead class="bg-slate-50 text-slate-600 border-b font-black uppercase text-[10px]">
+                                <tr>
+                                    <th class="px-5 py-3">Lokasi Gedung</th>
+                                    <th class="px-5 py-3">Nama Barang</th>
+                                    <th class="px-5 py-3">Total</th>
+                                    <th class="px-5 py-3">Kondisi Baik</th>
+                                    <th class="px-5 py-3">Rusak</th>
+                                    <th class="px-5 py-3 text-right">Aksi</th>
+                                </tr>
+                            </thead>
+                            <tbody class="divide-y divide-slate-100">
+                                ${(school.inventaris || []).map((i, idx) => `
+                                    <tr>
+                                        <td class="px-5 py-3.5 font-bold text-blue-900"><span class="px-2 py-0.5 bg-blue-50 border border-blue-200 rounded-md text-[10px]">${i.namaGedung || 'Gedung Utama'}</span></td>
+                                        <td class="px-5 py-3.5 font-black">${i.namaBarang}</td>
+                                        <td class="px-5 py-3.5 font-bold">${i.jumlahTotal}</td>
+                                        <td class="px-5 py-3.5 text-emerald-600 font-bold">${i.jumlahBaik}</td>
+                                        <td class="px-5 py-3.5 text-rose-600 font-bold">${i.jumlahRusak}</td>
+                                        <td class="px-5 py-3.5 text-right">
+                                            <button onclick="editInventaris('${school.npsn}', ${idx})" class="text-blue-600 hover:text-blue-800 font-bold mr-2.5"><i class="fa-solid fa-pen-to-square"></i></button>
+                                            <button onclick="deleteInventaris('${school.npsn}', ${idx})" class="text-rose-600 hover:text-rose-800 font-bold"><i class="fa-solid fa-trash"></i></button>
+                                        </td>
+                                    </tr>
+                                `).join('') || '<tr><td colspan="6" class="text-center py-6 text-slate-400 font-medium">Belum ada data inventaris. Silakan tambahkan data.</td></tr>'}
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+
+                <!-- Modal Tambah / Edit Inventaris -->
+                <div id="modal-inventaris" class="fixed inset-0 z-50 hidden bg-slate-950/60 backdrop-blur-sm flex items-center justify-center p-4">
+                    <div class="bg-white rounded-2xl max-w-sm w-full p-6 shadow-2xl space-y-4 animate-fade-in text-xs">
+                        <div class="flex justify-between items-center border-b pb-3">
+                            <h3 id="modal-inventaris-title" class="text-base font-black text-slate-900">Tambah Inventaris Barang</h3>
+                            <button onclick="closeInventarisModal()" class="text-slate-400 hover:text-slate-600 text-base font-bold"><i class="fa-solid fa-xmark"></i></button>
+                        </div>
+                        <form id="form-inventaris" onsubmit="saveInventarisForm(event)" class="space-y-3.5">
+                            <input type="hidden" id="inventaris-npsn" />
+                            <input type="hidden" id="inventaris-idx" value="-1" />
+                            <div>
+                                <label class="block text-[10px] font-bold text-slate-600 uppercase mb-1">Pilih Gedung / Lokasi <span class="text-rose-500">*</span></label>
+                                <select id="i-gedung" class="w-full px-3.5 py-2.5 border rounded-xl font-medium bg-slate-50 text-slate-800">
+                                    ${(school.bangunan || []).length > 0 ? school.bangunan.map(b => `<option value="${b.namaBangunan}">${b.namaBangunan}</option>`).join('') : '<option value="Gedung Utama">Gedung Utama (Default)</option>'}
+                                </select>
+                            </div>
+                            <div>
+                                <label class="block text-[10px] font-bold text-slate-600 uppercase mb-1">Nama Barang / Prasarana <span class="text-rose-500">*</span></label>
+                                <input type="text" id="i-nama" placeholder="Contoh: Meja Siswa / Kursi" required class="w-full px-3.5 py-2.5 border rounded-xl font-medium bg-slate-50"/>
+                            </div>
+                            <div class="grid grid-cols-2 gap-3">
+                                <div>
+                                    <label class="block text-[10px] font-bold text-slate-600 uppercase mb-1">Jumlah Total</label>
+                                    <input type="number" id="i-total" value="50" required class="w-full px-3.5 py-2.5 border rounded-xl font-medium bg-slate-50"/>
+                                </div>
+                                <div>
+                                    <label class="block text-[10px] font-bold text-slate-600 uppercase mb-1">Jumlah Baik</label>
+                                    <input type="number" id="i-baik" value="45" required class="w-full px-3.5 py-2.5 border rounded-xl font-medium bg-slate-50"/>
+                                </div>
+                            </div>
+                            <div class="flex justify-end gap-2.5 pt-2">
+                                <button type="button" onclick="closeInventarisModal()" class="px-4 py-2.5 bg-slate-100 font-bold text-slate-700 rounded-xl">Batal</button>
+                                <button type="submit" class="px-5 py-2.5 bg-blue-900 text-white font-black rounded-xl shadow-lg hover:bg-blue-800">Simpan Barang</button>
+                            </div>
+                        </form>
+                    </div>
+                </div>
+            `;
+        }
+
+        function renderSchoolUtilitas(school) {
+            const u = school.utilitas || { sumberAir: 'PDAM', sumberListrik: 'PLN', dayaListrik: 2200, internet: 'Fiber Optic (Indihome/dll)' };
+            return `
+                <div class="bg-white p-8 rounded-2xl shadow-xl border border-slate-200 max-w-3xl mx-auto space-y-5 text-xs">
+                    <h3 class="text-xl font-black text-slate-900">Utilitas & Konektivitas Internet</h3>
+                    <div class="space-y-4">
+                        <div class="grid grid-cols-1 md:grid-cols-2 gap-3">
+                            <div>
+                                <label class="block text-[10px] font-bold text-slate-600 uppercase mb-1">Sumber Air Bersih</label>
+                                <select id="util-air" class="w-full px-3.5 py-2.5 border rounded-xl font-medium bg-slate-50">
+                                    <option value="PDAM" ${u.sumberAir==='PDAM'?'selected':''}>PDAM</option>
+                                    <option value="Sumur Bor" ${u.sumberAir==='Sumur Bor'?'selected':''}>Sumur Bor</option>
+                                    <option value="Sungai / Lainnya" ${u.sumberAir==='Sungai / Lainnya'?'selected':''}>Sungai / Lainnya</option>
+                                </select>
+                            </div>
+                            <div>
+                                <label class="block text-[10px] font-bold text-slate-600 uppercase mb-1">Sumber Listrik</label>
+                                <select id="util-listrik" class="w-full px-3.5 py-2.5 border rounded-xl font-medium bg-slate-50">
+                                    <option value="PLN" ${u.sumberListrik==='PLN'?'selected':''}>PLN</option>
+                                    <option value="Genset / Diesel" ${u.sumberListrik==='Genset / Diesel'?'selected':''}>Genset / Diesel</option>
+                                    <option value="Tenaga Surya" ${u.sumberListrik==='Tenaga Surya'?'selected':''}>Tenaga Surya</option>
+                                </select>
+                            </div>
+                        </div>
+                        <div class="grid grid-cols-1 md:grid-cols-2 gap-3">
+                            <div>
+                                <label class="block text-[10px] font-bold text-slate-600 uppercase mb-1">Daya Listrik (Watt)</label>
+                                <input type="number" id="util-daya" value="${u.dayaListrik || 2200}" class="w-full px-3.5 py-2.5 border rounded-xl font-medium bg-slate-50"/>
+                            </div>
+                            <div>
+                                <label class="block text-[10px] font-bold text-slate-600 uppercase mb-1">Akses Internet Utama (Dukungan Starlink)</label>
+                                <select id="util-internet" class="w-full px-3.5 py-2.5 border rounded-xl font-bold text-blue-900 bg-blue-50/50 border-blue-200">
+                                    <option value="Fiber Optic (Indihome/dll)" ${u.internet==='Fiber Optic (Indihome/dll)'?'selected':''}>Fiber Optic (Indihome / Telkom)</option>
+                                    <option value="Starlink" ${u.internet==='Starlink'?'selected':''}>Starlink (Satellite High-Speed)</option>
+                                    <option value="Satelit (VSAT)" ${u.internet==='Satelit (VSAT)'?'selected':''}>Satelit Konvensional (VSAT)</option>
+                                    <option value="Jaringan Seluler" ${u.internet==='Jaringan Seluler'?'selected':''}>Jaringan Seluler (Tethering / Modem)</option>
+                                </select>
+                            </div>
+                        </div>
+                        <button onclick="saveSchoolUtilitas('${school.npsn}')" class="px-6 py-3 bg-blue-900 text-white font-black rounded-xl shadow-lg hover:bg-blue-800">Simpan Data Utilitas</button>
+                    </div>
+                </div>
+            `;
+        }
+
+        function renderSchoolDokumen(school) {
+            return `
+                <div class="bg-white p-8 rounded-2xl shadow-xl border border-slate-200 max-w-3xl mx-auto space-y-5 text-xs">
+                    <h3 class="text-xl font-black text-slate-900">Dokumen & Sertifikat</h3>
+                    <p class="text-slate-600 font-medium text-xs">Unggah berkas scan sertifikat tanah, IMB, atau foto kondisi fisik sekolah.</p>
+                    
+                    <input type="file" id="file-upload-input" class="hidden" onchange="handleFileUpload(event, '${school.npsn}')" accept=".pdf,.jpg,.jpeg,.png"/>
+                    
+                    <div onclick="document.getElementById('file-upload-input').click()" class="p-6 border-2 border-dashed border-slate-300 rounded-2xl text-center space-y-2.5 bg-slate-50 hover:bg-blue-50/40 transition-all cursor-pointer">
+                        <i class="fa-solid fa-cloud-arrow-up text-3xl text-blue-600"></i>
+                        <p class="font-bold text-slate-700">Klik untuk mengunggah dokumen PDF atau Gambar</p>
+                        <button type="button" class="px-4 py-2 bg-blue-900 text-white font-bold rounded-xl text-xs shadow-md">Pilih Berkas</button>
+                    </div>
+
+                    <div class="space-y-3 pt-3">
+                        <h4 class="font-black text-slate-900 text-xs uppercase tracking-wider">Daftar Berkas Terunggah</h4>
+                        <div class="space-y-3">
+                            ${(school.dokumen || []).map((d, idx) => `
+                                <div class="p-4 bg-slate-50 border border-slate-200 rounded-xl space-y-2.5">
+                                    <div class="flex items-center justify-between">
+                                        <div class="flex items-center gap-3">
+                                            <div class="w-9 h-9 rounded-lg bg-blue-100 text-blue-800 flex items-center justify-center font-bold text-xs">
+                                                <i class="fa-solid fa-file-pdf"></i>
+                                            </div>
+                                            <div>
+                                                <p class="font-bold text-slate-900 text-xs">${d.namaFile}</p>
+                                                <p class="text-[10px] text-slate-500">${d.kategori} &bull; ${d.ukuran} &bull; ${d.waktuUnggah}</p>
+                                            </div>
+                                        </div>
+                                        <div class="flex items-center gap-2">
+                                            <button onclick='openViewFile(${JSON.stringify(d.namaFile)}, ${JSON.stringify(d.url || "")}, ${JSON.stringify(d.kategori)})' class="px-3 py-1.5 bg-blue-900 text-white font-bold rounded-lg text-[11px] shadow hover:bg-blue-800"><i class="fa-solid fa-eye mr-1"></i> Cek Berkas</button>
+                                            <button onclick="toggleEditDokumen('${school.npsn}', ${idx})" class="px-3 py-1.5 bg-amber-50 text-amber-800 font-bold rounded-lg text-[11px] border border-amber-200 hover:bg-amber-100"><i class="fa-solid fa-pen mr-1"></i> Edit</button>
+                                            <button onclick="deleteDokumen('${school.npsn}', ${idx})" class="text-rose-600 hover:text-rose-800 p-2 font-bold" title="Hapus"><i class="fa-solid fa-trash"></i></button>
+                                        </div>
+                                    </div>
+                                    ${d.isEditing ? `
+                                        <div class="pt-3 border-t border-slate-200 space-y-2 animate-fade-in">
+                                            <div>
+                                                <label class="block text-[10px] font-bold text-slate-600 mb-1">Nama / Keterangan Dokumen</label>
+                                                <input type="text" id="edit-dok-nama-${idx}" value="${d.namaFile}" class="w-full px-3 py-2 border rounded-xl text-xs bg-white outline-none"/>
+                                            </div>
+                                            <div>
+                                                <label class="block text-[10px] font-bold text-slate-600 mb-1">Kategori Dokumen</label>
+                                                <select id="edit-dok-kat-${idx}" class="w-full px-3 py-2 border rounded-xl text-xs bg-white outline-none">
+                                                    <option value="Sertifikat Tanah" ${d.kategori==='Sertifikat Tanah'?'selected':''}>Sertifikat Tanah</option>
+                                                    <option value="IMB / PBG" ${d.kategori==='IMB / PBG'?'selected':''}>IMB / PBG</option>
+                                                    <option value="Dokumen Sekolah" ${d.kategori==='Dokumen Sekolah'?'selected':''}>Dokumen Sekolah</option>
+                                                </select>
+                                            </div>
+                                            <div class="flex justify-end gap-2 pt-1">
+                                                <button onclick="toggleEditDokumen('${school.npsn}', ${idx})" class="px-3.5 py-1.5 bg-slate-200 text-slate-700 font-bold rounded-xl text-[11px]">Batal</button>
+                                                <button onclick="saveEditDokumen('${school.npsn}', ${idx})" class="px-4 py-1.5 bg-blue-900 text-white font-bold rounded-xl text-[11px] shadow hover:bg-blue-800"><i class="fa-solid fa-floppy-disk mr-1"></i> Simpan</button>
+                                            </div>
+                                        </div>
+                                    ` : ''}
+                                </div>
+                            `).join('') || '<p class="text-slate-400 italic">Belum ada dokumen yang diunggah.</p>'}
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Modal Pratinjau Dokumen -->
+                <div id="modal-view-file" class="fixed inset-0 z-50 hidden bg-slate-950/70 backdrop-blur-sm flex items-center justify-center p-4">
+                    <div class="bg-white rounded-2xl max-w-2xl w-full p-6 shadow-2xl space-y-4 animate-fade-in text-xs">
+                        <div class="flex justify-between items-center border-b pb-3">
+                            <h3 id="view-file-title" class="text-sm font-black text-slate-900 truncate pr-4">Pratinjau Berkas</h3>
+                            <button onclick="closeViewFile()" class="text-slate-400 hover:text-slate-600 text-base font-bold"><i class="fa-solid fa-xmark"></i></button>
+                        </div>
+                        <div id="view-file-container" class="w-full h-96 bg-slate-100 rounded-xl border flex items-center justify-center overflow-hidden relative">
+                            <!-- Dynamic preview container -->
+                        </div>
+                        <div class="flex justify-end pt-2">
+                            <button onclick="closeViewFile()" class="px-5 py-2.5 bg-slate-200 font-bold text-slate-700 rounded-xl">Tutup</button>
+                        </div>
+                    </div>
+                </div>
+            `;
+        }
+
+        function handleFileUpload(e, npsn) {
+            const file = e.target.files[0];
+            if(!file) return;
+            const reader = new FileReader();
+            reader.onload = function(evt) {
+                const school = State.schools.find(s => s.npsn === npsn);
+                if(school) {
+                    if(!school.dokumen) school.dokumen = [];
+                    const sizeMB = (file.size / (1024*1024)).toFixed(1) + ' MB';
+                    school.dokumen.push({
+                        id: Date.now().toString(),
+                        namaFile: file.name,
+                        kategori: 'Dokumen Sekolah',
+                        ukuran: sizeMB,
+                        waktuUnggah: new Date().toISOString().split('T')[0],
+                        url: evt.target.result,
+                        isEditing: false
+                    });
+                    showToast("Dokumen berhasil diunggah.", "success");
+                    render();
+                }
+            };
+            reader.readAsDataURL(file);
+        }
+        window.handleFileUpload = handleFileUpload;
+
+        function toggleEditDokumen(npsn, idx) {
+            const school = State.schools.find(s => s.npsn === npsn);
+            if(school && school.dokumen[idx]) {
+                school.dokumen[idx].isEditing = !school.dokumen[idx].isEditing;
+                render();
+            }
+        }
+        window.toggleEditDokumen = toggleEditDokumen;
+
+        function saveEditDokumen(npsn, idx) {
+            const school = State.schools.find(s => s.npsn === npsn);
+            if(school && school.dokumen[idx]) {
+                const newName = document.getElementById(`edit-dok-nama-${idx}`).value.trim();
+                const newKat = document.getElementById(`edit-dok-kat-${idx}`).value;
+                if(newName) school.dokumen[idx].namaFile = newName;
+                school.dokumen[idx].kategori = newKat;
+                school.dokumen[idx].isEditing = false;
+                showToast("Perubahan dokumen berhasil disimpan.", "success");
+                render();
+            }
+        }
+        window.saveEditDokumen = saveEditDokumen;
+
+        function deleteDokumen(npsn, idx) {
+            const school = State.schools.find(s => s.npsn === npsn);
+            if(school && school.dokumen) {
+                school.dokumen.splice(idx, 1);
+                showToast("Dokumen berhasil dihapus.", "success");
+                render();
+            }
+        }
+        window.deleteDokumen = deleteDokumen;
+
+        function openViewFile(title, url, category) {
+            const m = document.getElementById('modal-view-file');
+            const t = document.getElementById('view-file-title');
+            const container = document.getElementById('view-file-container');
+            if(m && t && container) {
+                t.textContent = "Pratinjau: " + title;
+                if(url && (url.startsWith('data:image/') || url.match(/\.(jpeg|jpg|png|gif)$/i))) {
+                    container.innerHTML = `<img src="${url}" class="w-full h-full object-contain"/>`;
+                } else if(url && (url.startsWith('data:application/pdf') || url.match(/\.pdf$/i))) {
+                    container.innerHTML = `<iframe src="${url}" class="w-full h-full" frameborder="0"></iframe>`;
+                } else if(url) {
+                    container.innerHTML = `<iframe src="${url}" class="w-full h-full" frameborder="0"></iframe>`;
+                } else {
+                    container.innerHTML = `
+                        <div class="flex flex-col items-center justify-center p-8 text-center space-y-3">
+                            <div class="w-16 h-16 bg-blue-100 text-blue-800 rounded-full flex items-center justify-center text-2xl font-bold">
+                                <i class="fa-solid fa-file-pdf"></i>
+                            </div>
+                            <div>
+                                <h4 class="font-black text-slate-900 text-sm">${title}</h4>
+                                <p class="text-xs text-slate-500 mt-1">Dokumen resmi terverifikasi sistem SIPRASA Kutai Timur.</p>
+                            </div>
+                        </div>
+                    `;
+                }
+                m.classList.remove('hidden');
+            }
+        }
+        window.openViewFile = openViewFile;
+
+        function closeViewFile() {
+            const m = document.getElementById('modal-view-file');
+            if(m) m.classList.add('hidden');
+        }
+        window.closeViewFile = closeViewFile;
+
+        function renderSchoolUsulan(school) {
+            return `
+                <div class="max-w-3xl mx-auto space-y-6 text-xs">
+                    <div class="bg-white p-8 rounded-2xl shadow-xl border border-slate-200 space-y-5 no-print">
+                        <div class="flex items-center justify-between border-b pb-3">
+                            <div>
+                                <h3 class="text-xl font-black text-slate-900">Form Usulan Kebutuhan Sarana & Prasarana</h3>
+                                <p class="text-[11px] text-slate-500 font-medium mt-0.5">Ajukan permohonan pembangunan/rehab ruang atau pengadaan alat dan mebelair.</p>
+                            </div>
+                        </div>
+                        <form id="form-usulan" onsubmit="handleTambahUsulan(event, '${school.npsn}')" class="space-y-3.5">
+                            <div class="grid grid-cols-1 md:grid-cols-2 gap-3">
+                                <div>
+                                    <label class="block text-[10px] font-bold text-slate-600 uppercase mb-1">Jenis Bantuan / Usulan <span class="text-rose-500">*</span></label>
+                                    <select id="usul-jenis" class="w-full px-3.5 py-2.5 border rounded-xl font-medium bg-slate-50">
+                                        <option value="Rehab Berat Ruang Kelas">Rehab Berat Ruang Kelas</option>
+                                        <option value="Rehab Sedang Ruang Kelas">Rehab Sedang Ruang Kelas</option>
+                                        <option value="Pembangunan Ruang Kelas Baru (RKB)">Pembangunan Ruang Kelas Baru (RKB)</option>
+                                        <option value="Rehab Ruang Perpustakaan">Rehab Ruang Perpustakaan</option>
+                                        <option value="Pengadaan Mebelair Siswa (Meja & Kursi)">Pengadaan Mebelair Siswa (Meja & Kursi)</option>
+                                        <option value="Pengadaan Alat TIK / Komputer Lab">Pengadaan Alat TIK / Komputer Lab</option>
+                                        <option value="Pembangunan Sanitasi / Toilet">Pembangunan Sanitasi / Toilet</option>
+                                    </select>
+                                </div>
+                                <div>
+                                    <label class="block text-[10px] font-bold text-slate-600 uppercase mb-1">Volume / Jumlah <span class="text-rose-500">*</span></label>
+                                    <input type="text" id="usul-volume" placeholder="Contoh: 3 Ruangan / 50 Set" required class="w-full px-3.5 py-2.5 border rounded-xl font-medium bg-slate-50"/>
+                                </div>
+                            </div>
+                            <div>
+                                <label class="block text-[10px] font-bold text-slate-600 uppercase mb-1">Skala Prioritas <span class="text-rose-500">*</span></label>
+                                <select id="usul-prioritas" class="w-full px-3.5 py-2.5 border rounded-xl font-medium bg-slate-50">
+                                    <option value="Sangat Tinggi">Sangat Tinggi (Mendesak)</option>
+                                    <option value="Tinggi">Tinggi</option>
+                                    <option value="Sedang">Sedang</option>
+                                </select>
+                            </div>
+                            <div>
+                                <label class="block text-[10px] font-bold text-slate-600 uppercase mb-1">Alasan / Urgensi Kebutuhan <span class="text-rose-500">*</span></label>
+                                <textarea id="usul-alasan" rows="3" placeholder="Jelaskan kondisi kerusakan atau urgensi..." required class="w-full px-3.5 py-2.5 border rounded-xl font-medium bg-slate-50"></textarea>
+                            </div>
+                            <div class="flex justify-end pt-2">
+                                <button type="submit" class="px-6 py-3 bg-blue-900 text-white font-black rounded-xl shadow-lg hover:bg-blue-800">Tambah ke Daftar Usulan</button>
+                            </div>
+                        </form>
+                    </div>
+
+                    <div class="bg-white p-10 rounded-2xl shadow-xl border border-slate-200 space-y-6 print-container">
+                        <div class="border-b-4 border-double border-slate-900 pb-5 flex items-center justify-between">
+                            <div class="w-16 h-16 flex items-center justify-center shrink-0">
+                                <img src="https://i.ibb.co.com/wZd5Vn8h/Logo-Kabupaten-Kutai-Timur.png" alt="Logo Kutim" class="w-full h-full object-contain"/>
+                            </div>
+                            <div class="text-center flex-1 px-3">
+                                <h3 class="text-xs font-bold uppercase tracking-wider text-slate-700">PEMERINTAH KABUPATEN KUTAI TIMUR</h3>
+                                <h3 class="text-xs font-bold uppercase tracking-wider text-slate-700">DINAS PENDIDIKAN DAN KEBUDAYAAN</h3>
+                                <h2 class="text-lg font-black uppercase text-slate-900 mt-0.5">${school.nama}</h2>
+                                <p class="text-[11px] text-slate-600 mt-0.5">${school.alamat || 'Alamat Sekolah &bull; Kabupaten Kutai Timur'}</p>
+                                <p class="text-[11px] font-mono text-slate-600">NPSN: ${school.npsn}</p>
+                            </div>
+                            <div class="w-16"></div>
+                        </div>
+
+                        <div class="text-center space-y-1">
+                            <h4 class="font-black text-sm uppercase tracking-wide text-slate-900">SURAT USULAN KEBUTUHAN SARANA DAN PRASARANA</h4>
+                            <p class="text-[11px] text-slate-500 font-mono">Nomor: 000 / SIPRASA-SD / II / 2026</p>
+                        </div>
+
+                        <p class="text-slate-800 leading-relaxed text-xs">Yang bertanda tangan di bawah ini Kepala ${school.nama} Kabupaten Kutai Timur, dengan ini mengajukan usulan kebutuhan sarana dan prasarana sekolah:</p>
+
+                        <div class="overflow-x-auto">
+                            <table class="w-full text-left text-xs border border-slate-300">
+                                <thead class="bg-slate-100 text-slate-800 font-black uppercase border-b border-slate-300 text-[10px]">
+                                    <tr>
+                                        <th class="px-3 py-2 border-r border-slate-300 w-10 text-center">No</th>
+                                        <th class="px-3 py-2 border-r border-slate-300">Usulan</th>
+                                        <th class="px-3 py-2 border-r border-slate-300">Vol</th>
+                                        <th class="px-3 py-2 border-r border-slate-300">Prioritas</th>
+                                        <th class="px-3 py-2 border-r border-slate-300">Alasan</th>
+                                        <th class="px-3 py-2 text-center no-print w-16">Aksi</th>
+                                    </tr>
+                                </thead>
+                                <tbody class="divide-y divide-slate-300">
+                                    ${(school.usulan || []).map((u, idx) => `
+                                        <tr>
+                                            <td class="px-3 py-2 border-r border-slate-300 text-center font-bold">${idx + 1}</td>
+                                            <td class="px-3 py-2 border-r border-slate-300 font-bold">${u.jenisBantuan}</td>
+                                            <td class="px-3 py-2 border-r border-slate-300">${u.volume}</td>
+                                            <td class="px-3 py-2 border-r border-slate-300 font-bold text-rose-700">${u.prioritas}</td>
+                                            <td class="px-3 py-2 border-r border-slate-300 text-slate-600">${u.alasan}</td>
+                                            <td class="px-3 py-2 text-center no-print">
+                                                <button onclick="deleteUsulan('${school.npsn}', ${idx})" class="text-rose-600 hover:text-rose-800 font-bold px-2 py-1 bg-rose-50 rounded-lg border border-rose-200" title="Hapus"><i class="fa-solid fa-trash"></i></button>
+                                            </td>
+                                        </tr>
+                                    `).join('') || '<tr><td colspan="6" class="text-center py-5 text-slate-400 italic">Belum ada usulan sarpras.</td></tr>'}
+                                </tbody>
+                            </table>
+                        </div>
+
+                        <div class="flex justify-end pt-6">
+                            <div class="text-center w-60 space-y-16">
+                                <div>
+                                    <p class="text-xs text-slate-700">Sangatta, ${new Date().toLocaleDateString('id-ID', {day: 'numeric', month: 'long', year: 'numeric'})}</p>
+                                    <p class="text-xs font-bold text-slate-900 mt-0.5">Kepala Sekolah,</p>
+                                </div>
+                                <div>
+                                    <p class="font-black text-slate-900 underline text-xs">${school.kepalaSekolah || '(Nama Kepala Sekolah)'}</p>
+                                    <p class="text-[10px] font-mono text-slate-600 mt-0.5">NIP. ${school.nipKepsek || '...........................................'}</p>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="flex justify-center pt-4 no-print border-t">
+                            <button onclick="window.print()" class="px-8 py-3 bg-gradient-to-r from-blue-900 to-indigo-900 text-white font-black rounded-xl shadow-lg hover:shadow-xl transition-all flex items-center gap-2.5 text-xs">
+                                <i class="fa-solid fa-print"></i>
+                                <span>Cetak Surat Usulan Resmi</span>
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            `;
+        }
+
+        function deleteUsulan(npsn, idx) {
+            const school = State.schools.find(s => s.npsn === npsn);
+            if(school && school.usulan) {
+                school.usulan.splice(idx, 1);
+                showToast("Usulan berhasil dihapus.", "success");
+                render();
+            }
+        }
+        window.deleteUsulan = deleteUsulan;
+
+        function renderSchoolKirim(school) {
+            return `
+                <div class="bg-white p-10 rounded-2xl shadow-xl border border-slate-200 max-w-xl mx-auto text-center space-y-5 text-xs">
+                    <div class="w-16 h-16 bg-emerald-50 rounded-2xl mx-auto flex items-center justify-center border border-emerald-100 shadow-inner">
+                        <i class="fa-solid fa-paper-plane text-2xl text-emerald-600"></i>
+                    </div>
+                    <h3 class="text-2xl font-black text-slate-900">Kirim Data Pembaruan</h3>
+                    <p class="text-slate-600 font-medium leading-relaxed">Pastikan seluruh isian profil, tanah, bangunan, ruangan, inventaris, utilitas, dan usulan sarpras telah diisi dengan benar sebelum dikirimkan ke Admin Dinas Pendidikan.</p>
+                    <button onclick="sendSchoolData('${school.npsn}')" class="w-full py-3.5 bg-emerald-700 text-white font-black rounded-xl shadow-lg hover:bg-emerald-800 transition-all text-xs flex items-center justify-center gap-2"><i class="fa-solid fa-paper-plane"></i> Kirim Data Sekarang ke Admin Dinas</button>
+
+                    <div class="mt-4 p-5 rounded-xl border text-left ${school.status === 'Terverifikasi' ? 'bg-emerald-50 border-emerald-200 text-emerald-900' : school.status === 'Perlu Perbaikan' ? 'bg-rose-50 border-rose-200 text-rose-900' : 'bg-slate-50 border-slate-200 text-slate-800'}">
+                        <div class="flex items-center gap-2.5 font-black text-sm mb-1.5">
+                            <i class="fa-solid ${school.status === 'Terverifikasi' ? 'fa-circle-check text-emerald-600' : school.status === 'Perlu Perbaikan' ? 'fa-triangle-exclamation text-rose-600' : 'fa-circle-info text-blue-600'}"></i>
+                            <span>Status Pengiriman & Verifikasi: ${school.status}</span>
+                        </div>
+                        <p class="text-[11px] leading-relaxed opacity-90 font-medium">
+                            ${school.status === 'Terverifikasi' ? 'Data instrumen sarpras sekolah Anda telah berhasil diterima dan divalidasi oleh Tim Admin Dinas Pendidikan Kabupaten Kutai Timur.' : school.status === 'Perlu Perbaikan' ? 'Admin Dinas meminta revisi/perbaikan pada data sekolah Anda. Silakan cek catatan di Beranda atau menu terkait.' : 'Data Anda tersimpan dalam sistem. Klik tombol hijau di atas untuk mengirimkan pembaruan data secara resmi ke Dinas.'}
+                        </p>
+                        ${school.catatanAdmin ? `<div class="mt-2.5 pt-2.5 border-t border-current/20 text-[11px] font-bold">Catatan Admin: ${school.catatanAdmin}</div>` : ''}
+                    </div>
+                </div>
+            `;
+        }
+
+        function handleTambahUsulan(e, npsn) {
+            e.preventDefault();
+            const school = State.schools.find(s => s.npsn === npsn);
+            if(school) {
+                if(!school.usulan) school.usulan = [];
+                school.usulan.push({
+                    id: Date.now().toString(),
+                    jenisBantuan: document.getElementById('usul-jenis').value,
+                    volume: document.getElementById('usul-volume').value,
+                    prioritas: document.getElementById('usul-prioritas').value,
+                    alasan: document.getElementById('usul-alasan').value,
+                    tanggalUsul: new Date().toISOString().split('T')[0]
+                });
+                showToast("Usulan sarpras berhasil ditambahkan.", "success");
+                render();
+            }
+        }
+
+        function sendSchoolData(npsn) {
+            const school = State.schools.find(s => s.npsn === npsn);
+            if(school) {
+                school.status = 'Terverifikasi';
+                showToast("Data berhasil dikirim ke Admin Dinas.", "success");
+                render();
+            }
+        }
+
+        function openBangunanModal(npsn) {
+            document.getElementById('bangunan-npsn').value = npsn;
+            document.getElementById('bangunan-idx').value = "-1";
+            document.getElementById('modal-bangunan-title').textContent = "Tambah Data Gedung";
+            document.getElementById('b-nama').value = "";
+            document.getElementById('b-kondisi').value = "Baik";
+            document.getElementById('b-tahun').value = "2020";
+            document.getElementById('b-lantai').value = "1";
+            document.getElementById('b-luas').value = "100";
+            document.getElementById('modal-bangunan').classList.remove('hidden');
+        }
+        window.openBangunanModal = openBangunanModal;
+
+        function closeBangunanModal() {
+            document.getElementById('modal-bangunan').classList.add('hidden');
+        }
+        window.closeBangunanModal = closeBangunanModal;
+
+        function saveBangunanForm(e) {
+            e.preventDefault();
+            const npsn = document.getElementById('bangunan-npsn').value;
+            const idx = parseInt(document.getElementById('bangunan-idx').value);
+            const school = State.schools.find(s => s.npsn === npsn);
+            if(school) {
+                if(!school.bangunan) school.bangunan = [];
+                const data = {
+                    id: idx >= 0 ? school.bangunan[idx].id : Date.now().toString(),
+                    namaBangunan: document.getElementById('b-nama').value,
+                    kondisi: document.getElementById('b-kondisi').value,
+                    tahunBangun: parseInt(document.getElementById('b-tahun').value) || 2020,
+                    jumlahLantai: parseInt(document.getElementById('b-lantai').value) || 1,
+                    luasBangunan: parseFloat(document.getElementById('b-luas').value) || 100
+                };
+                if(idx >= 0) {
+                    school.bangunan[idx] = data;
+                    showToast("Data gedung diperbarui.", "success");
+                } else {
+                    school.bangunan.push(data);
+                    showToast("Data gedung ditambahkan.", "success");
+                }
+                closeBangunanModal();
+                render();
+            }
+        }
+        window.saveBangunanForm = saveBangunanForm;
+
+        function editBangunan(npsn, idx) {
+            const school = State.schools.find(s => s.npsn === npsn);
+            if(school && school.bangunan[idx]) {
+                const b = school.bangunan[idx];
+                document.getElementById('bangunan-npsn').value = npsn;
+                document.getElementById('bangunan-idx').value = idx;
+                document.getElementById('modal-bangunan-title').textContent = "Edit Data Gedung";
+                document.getElementById('b-nama').value = b.namaBangunan;
+                document.getElementById('b-kondisi').value = b.kondisi;
+                document.getElementById('b-tahun').value = b.tahunBangun;
+                document.getElementById('b-lantai').value = b.jumlahLantai;
+                document.getElementById('b-luas').value = b.luasBangunan;
+                document.getElementById('modal-bangunan').classList.remove('hidden');
+            }
+        }
+        window.editBangunan = editBangunan;
+
+        function deleteBangunan(npsn, idx) {
+            const school = State.schools.find(s => s.npsn === npsn);
+            if(school && school.bangunan) {
+                school.bangunan.splice(idx, 1);
+                showToast("Data gedung dihapus.", "success");
+                render();
+            }
+        }
+        window.deleteBangunan = deleteBangunan;
+
+        function openRuanganModal(npsn) {
+            document.getElementById('ruangan-npsn').value = npsn;
+            document.getElementById('ruangan-idx').value = "-1";
+            document.getElementById('modal-ruangan-title').textContent = "Tambah Data Ruangan";
+            document.getElementById('r-kategori').value = "Ruang Kelas";
+            document.getElementById('r-kondisi').value = "Baik";
+            document.getElementById('r-luas').value = "64";
+            document.getElementById('modal-ruangan').classList.remove('hidden');
+        }
+        window.openRuanganModal = openRuanganModal;
+
+        function closeRuanganModal() {
+            document.getElementById('modal-ruangan').classList.add('hidden');
+        }
+        window.closeRuanganModal = closeRuanganModal;
+
+        function saveRuanganForm(e) {
+            e.preventDefault();
+            const npsn = document.getElementById('ruangan-npsn').value;
+            const idx = parseInt(document.getElementById('ruangan-idx').value);
+            const school = State.schools.find(s => s.npsn === npsn);
+            if(school) {
+                if(!school.ruangan) school.ruangan = [];
+                const data = {
+                    id: idx >= 0 ? school.ruangan[idx].id : Date.now().toString(),
+                    kategoriRuang: document.getElementById('r-kategori').value,
+                    kondisi: document.getElementById('r-kondisi').value,
+                    luas: parseFloat(document.getElementById('r-luas').value) || 64
+                };
+                if(idx >= 0) {
+                    school.ruangan[idx] = data;
+                    showToast("Data ruangan diperbarui.", "success");
+                } else {
+                    school.ruangan.push(data);
+                    showToast("Data ruangan ditambahkan.", "success");
+                }
+                closeRuanganModal();
+                render();
+            }
+        }
+        window.saveRuanganForm = saveRuanganForm;
+
+        function editRuangan(npsn, idx) {
+            const school = State.schools.find(s => s.npsn === npsn);
+            if(school && school.ruangan[idx]) {
+                const r = school.ruangan[idx];
+                document.getElementById('ruangan-npsn').value = npsn;
+                document.getElementById('ruangan-idx').value = idx;
+                document.getElementById('modal-ruangan-title').textContent = "Edit Data Ruangan";
+                document.getElementById('r-kategori').value = r.kategoriRuang;
+                document.getElementById('r-kondisi').value = r.kondisi;
+                document.getElementById('r-luas').value = r.luas;
+                document.getElementById('modal-ruangan').classList.remove('hidden');
+            }
+        }
+        window.editRuangan = editRuangan;
+
+        function deleteRuangan(npsn, idx) {
+            const school = State.schools.find(s => s.npsn === npsn);
+            if(school && school.ruangan) {
+                school.ruangan.splice(idx, 1);
+                showToast("Data ruangan dihapus.", "success");
+                render();
+            }
+        }
+        window.deleteRuangan = deleteRuangan;
+
+        function openInventarisModal(npsn) {
+            const modal = document.getElementById('modal-inventaris');
+            if(!modal) return;
+            const school = State.schools.find(s => s.npsn === npsn);
+            if(school && school.bangunan) {
+                const selectGedung = document.getElementById('i-gedung');
+                if(selectGedung) {
+                    selectGedung.innerHTML = school.bangunan.length > 0 
+                        ? school.bangunan.map(b => `<option value="${b.namaBangunan}">${b.namaBangunan}</option>`).join('')
+                        : '<option value="Gedung Utama">Gedung Utama (Default)</option>';
+                }
+            }
+            document.getElementById('inventaris-npsn').value = npsn;
+            document.getElementById('inventaris-idx').value = "-1";
+            document.getElementById('modal-inventaris-title').textContent = "Tambah Inventaris Barang";
+            document.getElementById('i-nama').value = "";
+            document.getElementById('i-total').value = "50";
+            document.getElementById('i-baik').value = "45";
+            modal.classList.remove('hidden');
+        }
+        window.openInventarisModal = openInventarisModal;
+
+        function closeInventarisModal() {
+            const modal = document.getElementById('modal-inventaris');
+            if(modal) modal.classList.add('hidden');
+        }
+        window.closeInventarisModal = closeInventarisModal;
+
+        function saveInventarisForm(e) {
+            e.preventDefault();
+            const npsn = document.getElementById('inventaris-npsn').value;
+            const idx = parseInt(document.getElementById('inventaris-idx').value);
+            const total = parseInt(document.getElementById('i-total').value) || 0;
+            const baik = parseInt(document.getElementById('i-baik').value) || 0;
+            const school = State.schools.find(s => s.npsn === npsn);
+            if(school) {
+                if(!school.inventaris) school.inventaris = [];
+                const data = {
+                    id: idx >= 0 ? school.inventaris[idx].id : Date.now().toString(),
+                    namaGedung: document.getElementById('i-gedung').value,
+                    namaBarang: document.getElementById('i-nama').value,
+                    jumlahTotal: total,
+                    jumlahBaik: baik,
+                    jumlahRusak: Math.max(0, total - baik)
+                };
+                if(idx >= 0) {
+                    school.inventaris[idx] = data;
+                    showToast("Inventaris diperbarui.", "success");
+                } else {
+                    school.inventaris.push(data);
+                    showToast("Inventaris ditambahkan.", "success");
+                }
+                closeInventarisModal();
+                render();
+            }
+        }
+        window.saveInventarisForm = saveInventarisForm;
+
+        function editInventaris(npsn, idx) {
+            const school = State.schools.find(s => s.npsn === npsn);
+            if(school && school.inventaris[idx]) {
+                const i = school.inventaris[idx];
+                openInventarisModal(npsn);
+                document.getElementById('inventaris-idx').value = idx;
+                document.getElementById('modal-inventaris-title').textContent = "Edit Inventaris Barang";
+                document.getElementById('i-gedung').value = i.namaGedung || '';
+                document.getElementById('i-nama').value = i.namaBarang;
+                document.getElementById('i-total').value = i.jumlahTotal;
+                document.getElementById('i-baik').value = i.jumlahBaik;
+            }
+        }
+        window.editInventaris = editInventaris;
+
+        function deleteInventaris(npsn, idx) {
+            const school = State.schools.find(s => s.npsn === npsn);
+            if(school && school.inventaris) {
+                school.inventaris.splice(idx, 1);
+                showToast("Inventaris dihapus.", "success");
+                render();
+            }
+        }
+        window.deleteInventaris = deleteInventaris;
+
+        // Initialize App on Load
+        window.onload = () => {
+            render();
+        };
+    </script>
+</body>
+</html>
